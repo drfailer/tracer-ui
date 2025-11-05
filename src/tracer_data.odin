@@ -111,3 +111,13 @@ tracer_parse_file :: proc(filepath: string) -> (td: ^TracerData) {
     td.ttl_time = max_timestamp - min_timestamp
     return td
 }
+
+// TODO: duration format
+trace_to_string :: proc(trace: Trace) -> string {
+    dur := trace.end - trace.begin
+    if dur == 0 {
+        return fmt.aprintf("Event:\n- time point: {}\n- group: {}", trace.begin, trace.group)
+    }
+    return fmt.aprintf("Duration:\n- begin: {}\n- end: {}\n- dur: {}\n- group: {}",
+                       trace.begin, trace.end, dur, trace.group)
+}

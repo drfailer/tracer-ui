@@ -1,6 +1,7 @@
 package tracer_ui
 
 import "core:fmt"
+import "core:time"
 import "deps:sgui"
 import su "deps:sgui/sdl_utils"
 
@@ -23,6 +24,10 @@ TimelinesWidget :: struct {
         w: f32,
     },
     toggle_timelines: map[string]^sgui.Widget,
+    group_colors: map[string]sgui.Color,
+    hovered_trace: ^Trace,
+    hovered_trace_text: su.Text,
+    hover_stopwatch: time.Stopwatch,
 }
 
 timelines_widget_create :: proc(tracer_data: ^TracerData) -> (tw: TimelinesWidget) {
@@ -40,6 +45,14 @@ timelines_widget_destroy :: proc(tw: ^TimelinesWidget) {
 timelines_widget_init :: proc(handle: ^sgui.Handle, widget: ^sgui.Widget, user_data: rawptr) {
     tw := cast(^TimelinesWidget)user_data
 
+    time.stopwatch_start(&tw.hover_stopwatch)
+
+    tw.hovered_trace_text = su.text_create(
+        handle.text_engine,
+        su.font_cache_get_font(&handle.font_cache, sgui.FONT, sgui.FONT_SIZE),
+        "desc")
+    su.text_update_color(&tw.hovered_trace_text, su.Color{0, 0, 0, 255})
+
     for timeline in tw.tracer_data.timelines {
         text := su.text_create(
             handle.text_engine,
@@ -50,6 +63,13 @@ timelines_widget_init :: proc(handle: ^sgui.Handle, widget: ^sgui.Widget, user_d
         tw.legend.timelines[timeline] = text
         tw.legend.w = max(tw.legend.w, w)
     }
+    handle->mouse_move_handler(widget, proc(widget: ^sgui.Widget, event: sgui.MouseMotionEvent, handle: ^sgui.Handle) -> bool {
+        tw := cast(^TimelinesWidget)widget.data.(sgui.DrawBox).user_data
+        time.stopwatch_reset(&tw.hover_stopwatch)
+        time.stopwatch_start(&tw.hover_stopwatch)
+        tw.hovered_trace = nil
+        return false
+    })
 }
 
 timelines_widget_update :: proc(handle: ^sgui.Handle, widget: ^sgui.Widget, user_data: rawptr) -> sgui.ContentSize {
@@ -61,7 +81,6 @@ timelines_widget_update :: proc(handle: ^sgui.Handle, widget: ^sgui.Widget, user
             + TIMELINE_RMARGINE,
         TIMELINE_TMARGINE + cast(f32)len(tw.tracer_data.timelines) * (TIMELINE_HEIGHT + TIMELINE_SPACING) + TIMELINE_BMARGINE,
     }
-    // fmt.println(size.width)
     return size
 }
 
@@ -82,26 +101,57 @@ timelines_widget_draw :: proc(handle: ^sgui.Handle, widget: ^sgui.Widget, user_d
 
         xoffset := -draw_box.scrollbox.horizontal.position
 
-        for trace in traces {
+        for &trace in traces {
             dur := trace.end - trace.begin
 
             if dur == 0 {
-                handle->draw_rect(cast(f32)trace.begin * draw_box.zoombox.lvl - EVENT_THICKNESS / 2. + xoffset,
-                                  yoffset, EVENT_THICKNESS, TIMELINE_HEIGHT, sgui.Color{0, 0, 255, 255})
+                x : f32 = cast(f32)trace.begin * draw_box.zoombox.lvl - EVENT_THICKNESS / 2. + xoffset
+                y : f32 = yoffset
+                w : f32 = EVENT_THICKNESS
+                h : f32 = TIMELINE_HEIGHT
+                handle->draw_rect(x, y, w, h, sgui.Color{0, 0, 255, 255})
+                if sgui.mouse_on_region(handle, x, y, w, h) {
+                    tw.hovered_trace = &trace
+                }
             } else {
-                sgui.draw_rounded_box_with_border(
-                    handle,
-                    cast(f32)trace.begin + xoffset, yoffset,
-                    cast(f32)dur * draw_box.zoombox.lvl, TIMELINE_HEIGHT,
-                    5, 1,
-                    sgui.Color{0, 0, 0, 255},
-                    sgui.Color{200, 200, 200, 255},
-                )
+                x : f32 = cast(f32)trace.begin + xoffset
+                y : f32 = yoffset
+                w : f32 = cast(f32)dur * draw_box.zoombox.lvl
+                h : f32 = TIMELINE_HEIGHT
+                sgui.draw_rounded_box_with_border(handle, x, y, w, h, 5, 1,
+                    sgui.Color{0, 0, 0, 255}, sgui.Color{200, 200, 200, 255})
+                if sgui.mouse_on_region(handle, x, y, w, h) {
+                    tw.hovered_trace = &trace
+                }
             }
         }
 
         yoffset += TIMELINE_HEIGHT
         sgui.draw_line(handle, 0, cast(f32)yoffset + TIMELINE_SPACING / 2., widget.w, cast(f32)yoffset + TIMELINE_SPACING / 2., sgui.Color{0, 0, 0, 255})
         yoffset += TIMELINE_SPACING
+
+        if time.duration_seconds(time.stopwatch_duration(tw.hover_stopwatch)) > 0.8 {
+            sgui.add_ordered_draw(handle, 0, proc(handle: ^sgui.Handle, draw_data: rawptr) {
+                tw := cast(^TimelinesWidget)draw_data
+
+                if tw.hovered_trace == nil do return
+                desc := trace_to_string(tw.hovered_trace^)
+                defer delete(desc)
+                su.text_update_text(&tw.hovered_trace_text, desc)
+                w, h := su.text_size(&tw.hovered_trace_text)
+                padding := cast(f32)4
+                handle->draw_rect(
+                    handle.mouse_x - w - 2 * padding, handle.mouse_y,
+                    w + 2 * padding, h + 2 * padding,
+                    sgui.Color{0, 0, 0, 255}
+                )
+                handle->draw_rect(
+                    handle.mouse_x - w - 2 * padding + 1, handle.mouse_y + 1,
+                    w + 2 * padding - 2, h + 2 * padding - 2,
+                    sgui.Color{240, 240, 240, 255}
+                )
+                handle->draw_text(&tw.hovered_trace_text, handle.mouse_x - w - padding, handle.mouse_y + padding)
+            }, tw)
+        }
     }
 }
