@@ -13,8 +13,6 @@ TIMELINE_BMARGINE :: 10
 TIMELINE_LMARGINE :: 10
 TIMELINE_RMARGINE :: 10
 
-NS_PIXEL_RATIO :: 1
-
 EVENT_THICKNESS :: 4
 
 TimelinesWidget :: struct {
@@ -75,9 +73,10 @@ timelines_widget_init :: proc(handle: ^sgui.Handle, widget: ^sgui.Widget, user_d
 timelines_widget_update :: proc(handle: ^sgui.Handle, widget: ^sgui.Widget, user_data: rawptr) -> sgui.ContentSize {
     tw := cast(^TimelinesWidget)user_data
     draw_box := widget.data.(sgui.DrawBox)
+    px_tp_ratio := widget.w / cast(f32)tw.tracer_data.ttl_time
     size := sgui.ContentSize{
         TIMELINE_LMARGINE + tw.legend.w + TIMELINE_LEGEND_SPACING \
-            + cast(f32)tw.tracer_data.ttl_time * draw_box.zoombox.lvl * NS_PIXEL_RATIO \
+            + cast(f32)tw.tracer_data.ttl_time * draw_box.zoombox.lvl * px_tp_ratio \
             + TIMELINE_RMARGINE,
         TIMELINE_TMARGINE + cast(f32)len(tw.tracer_data.timelines) * (TIMELINE_HEIGHT + TIMELINE_SPACING) + TIMELINE_BMARGINE,
     }
@@ -89,6 +88,8 @@ timelines_widget_draw :: proc(handle: ^sgui.Handle, widget: ^sgui.Widget, user_d
     draw_box := widget.data.(sgui.DrawBox)
 
     yoffset := cast(f32)TIMELINE_TMARGINE
+
+    px_tp_ratio := widget.w / cast(f32)tw.tracer_data.ttl_time
 
     for timeline, traces in tw.tracer_data.timelines {
         if !tw.toggle_timelines[timeline]->value().(bool) do continue
@@ -105,7 +106,7 @@ timelines_widget_draw :: proc(handle: ^sgui.Handle, widget: ^sgui.Widget, user_d
             dur := trace.end - trace.begin
 
             if dur == 0 {
-                x : f32 = cast(f32)trace.begin * draw_box.zoombox.lvl - EVENT_THICKNESS / 2. + xoffset
+                x : f32 = cast(f32)trace.begin * draw_box.zoombox.lvl * px_tp_ratio - EVENT_THICKNESS / 2. + xoffset
                 y : f32 = yoffset
                 w : f32 = EVENT_THICKNESS
                 h : f32 = TIMELINE_HEIGHT
@@ -114,9 +115,9 @@ timelines_widget_draw :: proc(handle: ^sgui.Handle, widget: ^sgui.Widget, user_d
                     tw.hovered_trace = &trace
                 }
             } else {
-                x : f32 = cast(f32)trace.begin + xoffset
+                x : f32 = cast(f32)trace.begin * px_tp_ratio + xoffset
                 y : f32 = yoffset
-                w : f32 = cast(f32)dur * draw_box.zoombox.lvl
+                w : f32 = cast(f32)dur * draw_box.zoombox.lvl * px_tp_ratio
                 h : f32 = TIMELINE_HEIGHT
                 sgui.draw_rounded_box_with_border(handle, x, y, w, h, 5, 1,
                     sgui.Color{0, 0, 0, 255}, sgui.Color{200, 200, 200, 255})
