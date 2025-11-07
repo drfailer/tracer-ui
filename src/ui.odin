@@ -92,7 +92,7 @@ header :: proc() -> ^sgui.Widget {
     return sgui.vbox(
         sgui.hbox(
             sgui.button("MENU", proc(handle: ^sgui.Handle, _: rawptr) {
-                handle.tagged_widgets[SIDE_PANNEL_TAG].disabled = !handle.tagged_widgets[SIDE_PANNEL_TAG].disabled
+                sgui.widget_toggle(handle.tagged_widgets[SIDE_PANNEL_TAG], handle)
             }),
             sgui.center(sgui.text("TRACER")),
             attr = sgui.BoxAttributes{
