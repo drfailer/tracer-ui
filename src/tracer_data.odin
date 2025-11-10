@@ -145,12 +145,31 @@ tracer_parse_file :: proc(filepath: string) -> (td: ^TracerData) {
     return td
 }
 
-// TODO: duration format
+@(private="file")
+timestamp_to_string :: proc(t: Timestamp) -> string {
+    if t > 1_000_000_000 {
+        return fmt.aprintf("%.3f s", cast(f32)t / 1_000_000_000)
+    } else if t > 1_000_000 {
+        return fmt.aprintf("%.3f ms", cast(f32)t / 1_000_000)
+    } else if t > 1_000 {
+        return fmt.aprintf("%.3f us", cast(f32)t / 1_000)
+    }
+    return fmt.aprintf("{} ns", t)
+}
+
 trace_to_string :: proc(trace: Trace) -> string {
     dur := trace.end - trace.begin
     if dur == 0 {
-        return fmt.aprintf("Event:\n- time point: {}\n- group: {}", trace.begin, trace.group)
+        bt_str := timestamp_to_string(trace.begin)
+        defer delete(bt_str)
+        return fmt.aprintf("Event:\n- time point: {}\n- group: {}", bt_str, trace.group)
     }
+    bt_str := timestamp_to_string(trace.begin)
+    defer delete(bt_str)
+    et_str := timestamp_to_string(trace.end)
+    defer delete(et_str)
+    dur_str := timestamp_to_string(dur)
+    defer delete(dur_str)
     return fmt.aprintf("Duration:\n- begin: {}\n- end: {}\n- dur: {}\n- group: {}",
-                       trace.begin, trace.end, dur, trace.group)
+                       bt_str, et_str, dur_str, trace.group)
 }
