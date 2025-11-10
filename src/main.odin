@@ -39,7 +39,7 @@ main :: proc() {
 
     handle := sgui.create()
 
-    handle->add_layer(main_ui(handle, &timelines_widget))
+    sgui.add_layer(handle, main_ui(handle, &timelines_widget))
 
     sgui.init(handle)
     sgui.run(handle)

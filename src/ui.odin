@@ -60,7 +60,19 @@ set_theme :: proc() {
                 font = FONT,
                 font_size = FONT_SIZE,
             }
-        }
+        },
+        scrollbox_attr = ScrollboxAttributes{
+            style = ScrollboxStyle{
+                scrollbar_style = ScrollbarStyle{
+                    background_color = Color{250, 250, 250, 255},
+                    color = [ScrollbarState]Color{
+                        .Idle = Color{150, 150, 150, 255},
+                        .Hovered = Color{170, 170, 170, 255},
+                        .Selected = Color{160, 160, 160, 255},
+                    },
+                },
+            },
+        },
     }
 }
 

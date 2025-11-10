@@ -61,7 +61,7 @@ timelines_widget_init :: proc(handle: ^sgui.Handle, widget: ^sgui.Widget, user_d
         tw.legend.timelines[timeline] = text
         tw.legend.w = max(tw.legend.w, w)
     }
-    handle->mouse_move_handler(widget, proc(widget: ^sgui.Widget, event: sgui.MouseMotionEvent, handle: ^sgui.Handle) -> bool {
+    sgui.add_event_handler(handle, widget, proc(widget: ^sgui.Widget, event: sgui.MouseMotionEvent, handle: ^sgui.Handle) -> bool {
         tw := cast(^TimelinesWidget)widget.data.(sgui.DrawBox).user_data
         time.stopwatch_reset(&tw.hover_stopwatch)
         time.stopwatch_start(&tw.hover_stopwatch)
@@ -92,9 +92,9 @@ timelines_widget_draw :: proc(handle: ^sgui.Handle, widget: ^sgui.Widget, user_d
     px_tp_ratio := widget.w / cast(f32)tw.tracer_data.ttl_time
 
     for timeline, traces in tw.tracer_data.timelines {
-        if !tw.toggle_timelines[timeline]->value().(bool) do continue
+        if !sgui.radio_button_value(tw.toggle_timelines[timeline]) do continue
 
-        handle->draw_text(&tw.legend.timelines[timeline], TIMELINE_LMARGINE, cast(f32)yoffset)
+        sgui.draw_text(handle, &tw.legend.timelines[timeline], TIMELINE_LMARGINE, cast(f32)yoffset)
 
         old_rel_rect := handle.rel_rect
         handle.rel_rect.x = old_rel_rect.x + tw.legend.w + TIMELINE_LMARGINE + TIMELINE_LEGEND_SPACING
@@ -110,7 +110,7 @@ timelines_widget_draw :: proc(handle: ^sgui.Handle, widget: ^sgui.Widget, user_d
                 y : f32 = yoffset
                 w : f32 = EVENT_THICKNESS
                 h : f32 = TIMELINE_HEIGHT
-                handle->draw_rect(x, y, w, h, sgui.Color{0, 0, 255, 255})
+                sgui.draw_rect(handle, x, y, w, h, sgui.Color{0, 0, 255, 255})
                 if sgui.mouse_on_region(handle, x, y, w, h) {
                     tw.hovered_trace = &trace
                 }
@@ -141,17 +141,19 @@ timelines_widget_draw :: proc(handle: ^sgui.Handle, widget: ^sgui.Widget, user_d
                 su.text_update_text(&tw.hovered_trace_text, desc)
                 w, h := su.text_size(&tw.hovered_trace_text)
                 padding := cast(f32)4
-                handle->draw_rect(
+                sgui.draw_rect(
+                    handle,
                     handle.mouse_x - w - 2 * padding, handle.mouse_y,
                     w + 2 * padding, h + 2 * padding,
                     sgui.Color{0, 0, 0, 255}
                 )
-                handle->draw_rect(
+                sgui.draw_rect(
+                    handle,
                     handle.mouse_x - w - 2 * padding + 1, handle.mouse_y + 1,
                     w + 2 * padding - 2, h + 2 * padding - 2,
                     sgui.Color{240, 240, 240, 255}
                 )
-                handle->draw_text(&tw.hovered_trace_text, handle.mouse_x - w - padding, handle.mouse_y + padding)
+                sgui.draw_text(handle, &tw.hovered_trace_text, handle.mouse_x - w - padding, handle.mouse_y + padding)
             }, tw)
         }
     }
