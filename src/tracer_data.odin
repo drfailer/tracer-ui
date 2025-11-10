@@ -49,8 +49,8 @@ parse_color :: proc(color_str: string) -> (color: sgui.Color, ok: bool) {
     color.r = cast(u8)strconv.parse_uint(color_str[1:3], 16) or_return
     color.g = cast(u8)strconv.parse_uint(color_str[3:5], 16) or_return
     color.b = cast(u8)strconv.parse_uint(color_str[5:7], 16) or_return
-    color.a = cast(u8)strconv.parse_uint(color_str[7:], 16) or_return
-    log.info(color)
+    a, aok := strconv.parse_uint(color_str[7:], 16)
+    color.a = cast(u8)a if aok else 255
     return color, true
 }
 
