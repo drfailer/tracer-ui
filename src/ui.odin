@@ -78,7 +78,7 @@ set_theme :: proc() {
 
 side_pannel :: proc(timelines_widget: ^TimelinesWidget) -> (pannel: ^sgui.Widget) {
     pannel = sgui.vbox(
-        sgui.text("timelines:"),
+        sgui.text("Menu"),
         attr = sgui.BoxAttributes{
             props = sgui.BoxProperties{.FitW},
             style = sgui.BoxStyle{
@@ -91,11 +91,30 @@ side_pannel :: proc(timelines_widget: ^TimelinesWidget) -> (pannel: ^sgui.Widget
             }
         }
     )
+
+    sgui.box_add_widget(pannel, sgui.text("groups:"))
+    idle_group_button := sgui.radio_button("_idle", default_checked = true)
+    timelines_widget.groups["_idle"] = TimelinesWidgetGroupData{
+        button = idle_group_button,
+        color = sgui.Color{255, 255, 255, 255}, // this group is not drawn directly
+    }
+    sgui.box_add_widget(pannel, idle_group_button)
+    for group, conf in timelines_widget.tracer_data.groups {
+        button := sgui.radio_button(group, default_checked = true)
+        timelines_widget.groups[group] = TimelinesWidgetGroupData{
+            button = button,
+            color = conf.color,
+        }
+        sgui.box_add_widget(pannel, button)
+    }
+
+    sgui.box_add_widget(pannel, sgui.text("timelines:"))
     for timeline in timelines_widget.tracer_data.timelines {
         button := sgui.radio_button(timeline, default_checked = true)
         timelines_widget.toggle_timelines[timeline] = button
         sgui.box_add_widget(pannel, button)
     }
+
     pannel.disabled = true
     return pannel
 }

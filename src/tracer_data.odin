@@ -8,11 +8,17 @@ import "core:mem"
 import "core:fmt"
 import "core:log"
 import "core:slice"
+import sgui "deps:sgui"
 
 Timestamp :: u64
 
+GroupConfig :: struct {
+    color: sgui.Color,
+}
+
 TracerData :: struct {
     timelines: map[string][dynamic]Trace,
+    groups: map[string]GroupConfig,
     ttl_time: u64,
     arena: mem.Dynamic_Arena,
     allocator: mem.Allocator,
@@ -27,18 +33,35 @@ tracer_data_create :: proc() -> (td: ^TracerData) {
     td = new(TracerData)
     mem.dynamic_arena_init(&td.arena)
     td.allocator = mem.dynamic_arena_allocator(&td.arena)
+    td.timelines = make(map[string][dynamic]Trace)
+    td.groups = make(map[string]GroupConfig)
     return
 }
 
 tracer_data_destroy :: proc(td: ^TracerData) {
     mem.dynamic_arena_destroy(&td.arena)
     delete(td.timelines)
+    delete(td.groups)
     free(td)
 }
 
-tracer_parse_line :: proc(line: string, allocator: mem.Allocator) -> (trace: Trace, timelines: []string, ok: bool) {
+parse_color :: proc(color_str: string) -> (color: sgui.Color, ok: bool) {
+    color.r = cast(u8)strconv.parse_uint(color_str[1:3], 16) or_return
+    color.g = cast(u8)strconv.parse_uint(color_str[3:5], 16) or_return
+    color.b = cast(u8)strconv.parse_uint(color_str[5:7], 16) or_return
+    color.a = cast(u8)strconv.parse_uint(color_str[7:], 16) or_return
+    log.info(color)
+    return color, true
+}
+
+tracer_parse_line :: proc(
+    line: string,
+    allocator: mem.Allocator
+) -> (trace: Trace, timelines: []string, group_config: GroupConfig, ok: bool) {
     line_parts := strings.split(line, ";")
     defer delete(line_parts)
+
+    group_config.color = sgui.Color{200, 200, 255, 255}
 
     if len(line_parts) != 4 {
         log.error("syntax error.")
@@ -55,10 +78,18 @@ tracer_parse_line :: proc(line: string, allocator: mem.Allocator) -> (trace: Tra
         trace.begin = strconv.parse_u64(dur_parts[0]) or_return
         trace.end = strconv.parse_u64(dur_parts[1]) or_return
     }
-    trace.group = strings.clone(line_parts[2], allocator)
+    color_idx := strings.index(line_parts[2], "#")
+    if color_idx > 0 {
+        color_str := strings.substring_from(line_parts[2], color_idx) or_return
+        group_str := strings.substring_to(line_parts[2], color_idx) or_return
+        group_config.color = parse_color(color_str) or_return
+        trace.group = strings.clone(group_str, allocator)
+    } else {
+        trace.group = strings.clone(line_parts[2], allocator)
+    }
     timelines = strings.split(line_parts[3], ",")
 
-    return trace, timelines, true
+    return trace, timelines, group_config, true
 }
 
 tracer_parse_file :: proc(filepath: string) -> (td: ^TracerData) {
@@ -70,7 +101,6 @@ tracer_parse_file :: proc(filepath: string) -> (td: ^TracerData) {
 	defer os.close(file)
 
     td = tracer_data_create()
-    td.timelines = make(map[string][dynamic]Trace)
     min_timestamp, max_timestamp : Timestamp = 0, 0
 
 	reader: bufio.Reader
@@ -86,7 +116,7 @@ tracer_parse_file :: proc(filepath: string) -> (td: ^TracerData) {
 		}
 		defer delete(line)
 
-        trace, timelines, ok := tracer_parse_line(strings.trim(line, "\n"), td.allocator)
+        trace, timelines, group_config, ok := tracer_parse_line(strings.trim(line, "\n"), td.allocator)
         defer delete(timelines)
         if !ok {
             log.error("cannot parse line ", line_idx)
@@ -98,6 +128,9 @@ tracer_parse_file :: proc(filepath: string) -> (td: ^TracerData) {
         for timeline in timelines {
             if timeline not_in td.timelines {
                 td.timelines[strings.clone(timeline, td.allocator)] = make([dynamic]Trace, td.allocator)
+            }
+            if trace.group not_in td.groups {
+                td.groups[trace.group] = group_config
             }
             append(&td.timelines[timeline], trace)
         }
