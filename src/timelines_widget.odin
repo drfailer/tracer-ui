@@ -107,7 +107,7 @@ timelines_widget_draw :: proc(handle: ^sgui.Handle, widget: ^sgui.Widget, user_d
         handle.rel_rect.x = old_rel_rect.x + tw.legend.w + TIMELINE_LMARGINE + TIMELINE_LEGEND_SPACING
         defer handle.rel_rect = old_rel_rect
 
-        xoffset := -draw_box.scrollbox.horizontal.position
+        xoffset := -draw_box.scrollbars.horizontal.position
 
         for &trace in traces {
             dur := trace.end - trace.begin

@@ -61,15 +61,19 @@ set_theme :: proc() {
                 font_size = FONT_SIZE,
             }
         },
-        scrollbox_attr = ScrollboxAttributes{
-            style = ScrollboxStyle{
-                scrollbar_style = ScrollbarStyle{
-                    background_color = Color{250, 250, 250, 255},
-                    color = [ScrollbarState]Color{
-                        .Idle = Color{150, 150, 150, 255},
-                        .Hovered = Color{170, 170, 170, 255},
-                        .Selected = Color{160, 160, 160, 255},
-                    },
+        scrollbars_attr = ScrollbarsAttributes{
+            style = ScrollbarStyle{
+                track_padding = Padding{2, 2, 2, 2},
+                track_color = Color{240, 240, 240, 255},
+                thumb_color = [ScrollbarThumbState]Color{
+                    .Idle = Color{150, 150, 150, 255},
+                    .Hovered = Color{170, 170, 170, 255},
+                    .Selected = Color{160, 160, 160, 255},
+                },
+                button_color = [ScrollbarButtonState]Color{
+                    .Idle = Color{150, 150, 150, 255},
+                    .Hovered = Color{170, 170, 170, 255},
+                    .Clicked = Color{160, 160, 160, 255},
                 },
             },
         },
@@ -162,6 +166,7 @@ main_ui :: proc(handle: ^sgui.Handle, timelines_widget: ^TimelinesWidget) -> ^sg
                     zoom_min = 1.,
                     zoom_max = 1000.,
                     zoom_step = .5,
+                    scrollbars_attr = sgui.OPTS.scrollbars_attr,
                 }
             ),
         ),
