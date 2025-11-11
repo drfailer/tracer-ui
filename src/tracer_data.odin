@@ -145,7 +145,6 @@ tracer_parse_file :: proc(filepath: string) -> (td: ^TracerData) {
     return td
 }
 
-@(private="file")
 timestamp_to_string :: proc(t: Timestamp) -> string {
     if t > 1_000_000_000 {
         return fmt.aprintf("%.3f s", cast(f32)t / 1_000_000_000)
