@@ -189,7 +189,7 @@ group_info_to_string :: proc(group: string, group_info: GroupInfo) -> string {
         group, group_info.dur_count, ttl_dur_str, avg_dur_str)
 }
 
-timestamp_to_string :: proc(t: Timestamp) -> string {
+time_to_string :: proc(t: $T) -> string {
     if t > 1_000_000_000 {
         return fmt.aprintf("%.3f s", cast(f32)t / 1_000_000_000)
     } else if t > 1_000_000 {

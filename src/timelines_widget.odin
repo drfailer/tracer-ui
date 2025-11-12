@@ -108,7 +108,9 @@ timelines_widget_time_axis_draw :: proc(
     for legend := legend_start; legend < tend; legend += legend_step {
         legend_x := legend * px_tp_ratio - position
         if legend_x > 0 {
-            tp_str := timestamp_to_string(cast(u64)legend)
+            // BUG: for a reasong, `cast(u64)legend' did not give the intended output, therefore,
+            // the time_to_string function is now generic
+            tp_str := time_to_string(legend)
             defer delete(tp_str)
             su.text_update_text(&tw.legend.marker_text, tp_str)
             text_w, _ := su.text_size(&tw.legend.marker_text)
