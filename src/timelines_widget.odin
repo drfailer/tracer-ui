@@ -148,6 +148,13 @@ timelines_widget_draw :: proc(handle: ^sgui.Handle, widget: ^sgui.Widget, user_d
                 y : f32 = yoffset
                 w : f32 = EVENT_THICKNESS
                 h : f32 = TIMELINE_HEIGHT
+
+                if x + w < 0 {
+                    continue
+                } else if x > widget.w {
+                    break
+                }
+
                 sgui.draw_rect(handle, x, y, w, h, tw.tracer_data.groups_infos[trace.group].color)
                 if sgui.mouse_on_region(handle, x, y, w, h) {
                     tw.hovered_trace = &trace
@@ -157,6 +164,13 @@ timelines_widget_draw :: proc(handle: ^sgui.Handle, widget: ^sgui.Widget, user_d
                 y : f32 = yoffset
                 w : f32 = cast(f32)dur * px_tp_ratio
                 h : f32 = TIMELINE_HEIGHT
+
+                if x + w < 0 {
+                    continue
+                } else if x > widget.w {
+                    break
+                }
+
                 sgui.draw_rounded_box_with_border(handle, x, y, w, h, 6, 1,
                     sgui.Color{200, 200, 200, 255}, tw.tracer_data.groups_infos[trace.group].color)
                 if sgui.mouse_on_region(handle, x, y, w, h) {
