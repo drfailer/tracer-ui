@@ -86,7 +86,7 @@ timelines_widget_update :: proc(handle: ^sgui.Handle, widget: ^sgui.Widget, user
 
 get_time_axis_markers :: proc(tstart, tttl: f32) -> (mstart, mstep: f32) {
     mstep = tttl / 3
-    mstart = math.floor(tstart - cast(f32)(cast(int)tstart % cast(int)mstep))
+    mstart = mstep * math.ceil(tstart / mstep)
     return mstart, mstep
 }
 
