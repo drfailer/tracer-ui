@@ -30,6 +30,7 @@ TracerData :: struct {
 Trace :: struct {
     begin, end: Timestamp,
     group: string,
+    infos: string,
 }
 
 tracer_data_create :: proc() -> (td: ^TracerData) {
@@ -66,7 +67,7 @@ tracer_parse_line :: proc(
 
     group_color = sgui.Color{200, 200, 255, 255}
 
-    if len(line_parts) != 4 {
+    if len(line_parts) < 4 {
         log.error("syntax error.")
         return
     }
@@ -91,6 +92,13 @@ tracer_parse_line :: proc(
         trace.group = strings.clone(line_parts[2], allocator)
     }
     timelines = strings.split(line_parts[3], ",")
+
+    if len(line_parts) > 4 {
+        infos, alloc := strings.replace_all(line_parts[4], ",", "\n  - ", allocator)
+        trace.infos = infos if alloc else strings.clone(infos, allocator)
+    } else {
+        trace.infos = "none"
+    }
 
     return trace, timelines, group_color, true
 }
@@ -193,7 +201,8 @@ trace_to_string :: proc(trace: Trace) -> string {
     if dur == 0 {
         bt_str := timestamp_to_string(trace.begin)
         defer delete(bt_str)
-        return fmt.aprintf("Event:\n- time point: {}\n- group: {}", bt_str, trace.group)
+        return fmt.aprintf("Event:\n- time point: {}\n- group: {}\n- infos:\n  - {}",
+                           bt_str, trace.group, trace.infos)
     }
     bt_str := timestamp_to_string(trace.begin)
     defer delete(bt_str)
@@ -201,6 +210,6 @@ trace_to_string :: proc(trace: Trace) -> string {
     defer delete(et_str)
     dur_str := timestamp_to_string(dur)
     defer delete(dur_str)
-    return fmt.aprintf("Duration:\n- begin: {}\n- end: {}\n- dur: {}\n- group: {}",
-                       bt_str, et_str, dur_str, trace.group)
+    return fmt.aprintf("Duration:\n- begin: {}\n- end: {}\n- dur: {}\n- group: {}\n- infos:\n  - {}",
+                       bt_str, et_str, dur_str, trace.group, trace.infos)
 }

@@ -136,7 +136,8 @@ header :: proc() -> ^sgui.Widget {
                 background_color = sgui.Color{250, 250, 255, 255},
                 padding = sgui.Padding{10, 10, 10, 10},
             }
-        }
+        },
+        z_index = 1,
     )
 }
 
