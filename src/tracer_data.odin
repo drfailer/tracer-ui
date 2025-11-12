@@ -124,7 +124,7 @@ tracer_parse_file :: proc(filepath: string) -> (td: ^TracerData) {
 	bufio.reader_init_with_buf(&reader, stream, buffer[:])
 	defer bufio.reader_destroy(&reader)
 
-    for line_idx := 0;; line_idx += 1 {
+    for line_idx := 1;; line_idx += 1 {
 		line, err := bufio.reader_read_string(&reader, '\n')
 		if err != nil {
 			break
