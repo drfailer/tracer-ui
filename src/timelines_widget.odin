@@ -14,7 +14,7 @@ TIMELINE_BMARGINE :: 10
 TIMELINE_LMARGINE :: 10
 TIMELINE_RMARGINE :: 10
 
-EVENT_THICKNESS :: 4
+EVENT_THICKNESS :: 2
 
 TimelinesWidget :: struct {
     tracer_data: ^TracerData,
