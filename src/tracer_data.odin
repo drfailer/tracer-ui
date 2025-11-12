@@ -58,14 +58,26 @@ parse_color :: proc(color_str: string) -> (color: sgui.Color, ok: bool) {
     return color, true
 }
 
+parse_group :: proc(group_str: string, allocator: mem.Allocator) -> (name: string, color: sgui.Color, ok: bool) {
+    parts := strings.split(group_str, ",")
+    defer delete(parts)
+
+    color = sgui.Color{200, 200, 255, 255}
+
+    name = strings.clone(parts[0], allocator)
+    if len(parts) == 1 {
+        return name, color, true
+    }
+    color = parse_color(parts[1]) or_return
+    return name, color, true
+}
+
 tracer_parse_line :: proc(
     line: string,
     allocator: mem.Allocator
 ) -> (trace: Trace, timelines: []string, group_color: sgui.Color, ok: bool) {
     line_parts := strings.split(line, ";")
     defer delete(line_parts)
-
-    group_color = sgui.Color{200, 200, 255, 255}
 
     if len(line_parts) < 4 {
         log.error("syntax error.")
@@ -82,15 +94,7 @@ tracer_parse_line :: proc(
         trace.begin = strconv.parse_u64(dur_parts[0]) or_return
         trace.end = strconv.parse_u64(dur_parts[1]) or_return
     }
-    color_idx := strings.index(line_parts[2], "#")
-    if color_idx > 0 {
-        color_str := strings.substring_from(line_parts[2], color_idx) or_return
-        group_str := strings.substring_to(line_parts[2], color_idx) or_return
-        group_color = parse_color(color_str) or_return
-        trace.group = strings.clone(group_str, allocator)
-    } else {
-        trace.group = strings.clone(line_parts[2], allocator)
-    }
+    trace.group, group_color = parse_group(line_parts[2], allocator) or_return
     timelines = strings.split(line_parts[3], ",")
 
     if len(line_parts) > 4 {
