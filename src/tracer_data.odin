@@ -180,10 +180,10 @@ group_info_to_string :: proc(group: string, group_info: GroupInfo) -> string {
     if group_info.event_count > 0 {
         return fmt.aprintf("{}:\n  - event count: {}", group, group_info.event_count)
     }
-    ttl_dur_str := timestamp_to_string(group_info.ttl_dur)
+    ttl_dur_str := time_to_string(group_info.ttl_dur)
     defer delete(ttl_dur_str)
     avg_dur := cast(f32)group_info.ttl_dur / cast(f32)group_info.dur_count
-    avg_dur_str := timestamp_to_string(cast(Timestamp)avg_dur)
+    avg_dur_str := time_to_string(cast(Timestamp)avg_dur)
     defer delete(avg_dur_str)
     return fmt.aprintf("{}:\n  - dur count: {}\n  - ttl time: {}\n  - avg dur: {}",
         group, group_info.dur_count, ttl_dur_str, avg_dur_str)
@@ -203,16 +203,16 @@ time_to_string :: proc(t: $T) -> string {
 trace_to_string :: proc(trace: Trace) -> string {
     dur := trace.end - trace.begin
     if dur == 0 {
-        bt_str := timestamp_to_string(trace.begin)
+        bt_str := time_to_string(trace.begin)
         defer delete(bt_str)
         return fmt.aprintf("Event:\n- time point: {}\n- group: {}\n- infos:\n  - {}",
                            bt_str, trace.group, trace.infos)
     }
-    bt_str := timestamp_to_string(trace.begin)
+    bt_str := time_to_string(trace.begin)
     defer delete(bt_str)
-    et_str := timestamp_to_string(trace.end)
+    et_str := time_to_string(trace.end)
     defer delete(et_str)
-    dur_str := timestamp_to_string(dur)
+    dur_str := time_to_string(dur)
     defer delete(dur_str)
     return fmt.aprintf("Duration:\n- begin: {}\n- end: {}\n- dur: {}\n- group: {}\n- infos:\n  - {}",
                        bt_str, et_str, dur_str, trace.group, trace.infos)
