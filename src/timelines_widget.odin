@@ -16,11 +16,6 @@ TIMELINE_RMARGINE :: 10
 
 EVENT_THICKNESS :: 4
 
-TimelinesWidgetGroupData :: struct {
-    color: sgui.Color,
-    button: ^sgui.Widget,
-}
-
 TimelinesWidget :: struct {
     tracer_data: ^TracerData,
     legend: struct {
@@ -29,7 +24,6 @@ TimelinesWidget :: struct {
         marker_text: su.Text,
     },
     toggle_timelines: map[string]^sgui.Widget,
-    groups: map[string]TimelinesWidgetGroupData,
     hovered_trace: ^Trace,
     hovered_trace_text: su.Text,
     hover_stopwatch: time.Stopwatch,
@@ -39,14 +33,12 @@ timelines_widget_create :: proc(tracer_data: ^TracerData) -> (tw: TimelinesWidge
     tw.tracer_data = tracer_data
     tw.legend.timelines = make(map[string]su.Text)
     tw.toggle_timelines = make(map[string]^sgui.Widget)
-    tw.groups = make(map[string]TimelinesWidgetGroupData)
     return tw
 }
 
 timelines_widget_destroy :: proc(tw: ^TimelinesWidget) {
     delete(tw.legend.timelines)
     delete(tw.toggle_timelines)
-    delete(tw.groups)
 }
 
 timelines_widget_init :: proc(handle: ^sgui.Handle, widget: ^sgui.Widget, user_data: rawptr) {
@@ -156,7 +148,7 @@ timelines_widget_draw :: proc(handle: ^sgui.Handle, widget: ^sgui.Widget, user_d
                 y : f32 = yoffset
                 w : f32 = EVENT_THICKNESS
                 h : f32 = TIMELINE_HEIGHT
-                sgui.draw_rect(handle, x, y, w, h, tw.groups[trace.group].color)
+                sgui.draw_rect(handle, x, y, w, h, tw.tracer_data.groups_infos[trace.group].color)
                 if sgui.mouse_on_region(handle, x, y, w, h) {
                     tw.hovered_trace = &trace
                 }
@@ -166,7 +158,7 @@ timelines_widget_draw :: proc(handle: ^sgui.Handle, widget: ^sgui.Widget, user_d
                 w : f32 = cast(f32)dur * px_tp_ratio
                 h : f32 = TIMELINE_HEIGHT
                 sgui.draw_rounded_box_with_border(handle, x, y, w, h, 6, 1,
-                    sgui.Color{200, 200, 200, 255}, tw.groups[trace.group].color)
+                    sgui.Color{200, 200, 200, 255}, tw.tracer_data.groups_infos[trace.group].color)
                 if sgui.mouse_on_region(handle, x, y, w, h) {
                     tw.hovered_trace = &trace
                 }

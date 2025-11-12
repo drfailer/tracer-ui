@@ -90,33 +90,26 @@ side_pannel :: proc(timelines_widget: ^TimelinesWidget) -> (pannel: ^sgui.Widget
                 border_color = sgui.Color{0, 0, 0, 255},
                 border_thickness = 1,
                 background_color = sgui.Color{240, 240, 250, 255},
-                padding = sgui.Padding{4, 4, 4, 4},
+                padding = sgui.Padding{10, 10, 10, 10},
                 items_spacing = 5,
             }
         }
     )
 
-    sgui.box_add_widget(pannel, sgui.text("groups:"))
-    idle_group_button := sgui.radio_button("_idle", default_checked = true)
-    timelines_widget.groups["_idle"] = TimelinesWidgetGroupData{
-        button = idle_group_button,
-        color = sgui.Color{255, 255, 255, 255}, // this group is not drawn directly
-    }
-    sgui.box_add_widget(pannel, idle_group_button)
-    for group, conf in timelines_widget.tracer_data.groups {
-        button := sgui.radio_button(group, default_checked = true)
-        timelines_widget.groups[group] = TimelinesWidgetGroupData{
-            button = button,
-            color = conf.color,
-        }
-        sgui.box_add_widget(pannel, button)
-    }
-
+    // toggle timelines buttons
     sgui.box_add_widget(pannel, sgui.text("timelines:"))
     for timeline in timelines_widget.tracer_data.timelines {
         button := sgui.radio_button(timeline, default_checked = true)
         timelines_widget.toggle_timelines[timeline] = button
         sgui.box_add_widget(pannel, button)
+    }
+
+    // stats
+    sgui.box_add_widget(pannel, sgui.text("stats:"))
+    for group, group_info in timelines_widget.tracer_data.groups_infos {
+        info_str := group_info_to_string(group, group_info)
+        defer delete(info_str)
+        sgui.box_add_widget(pannel, sgui.text(info_str))
     }
 
     pannel.disabled = true
