@@ -88,7 +88,7 @@ tracer_parse_line :: proc(
     case "ev":
         trace.begin = strconv.parse_u64(line_parts[1]) or_return
         trace.end = trace.begin
-    case "dur":
+    case "du":
         dur_parts := strings.split(line_parts[1], ",")
         defer delete(dur_parts)
         trace.begin = strconv.parse_u64(dur_parts[0]) or_return
