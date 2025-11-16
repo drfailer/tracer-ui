@@ -143,9 +143,10 @@ timelines_widget_draw :: proc(handle: ^sgui.Handle, widget: ^sgui.Widget, user_d
 
         // TODO: test this
         start_idx, found := slice.binary_search_by(traces[:], tstart, proc(trace: Trace, key: f32) -> slice.Ordering {
-            if cast(f32)trace.begin == key {
+            if trace.begin == trace.end do return .Greater // TODO: this probably not work if there are only events
+            if cast(f32)trace.end == key {
                 return .Equal
-            } else if cast(f32)trace.begin > key {
+            } else if cast(f32)trace.end > key {
                 return .Greater
             }
             return .Less
