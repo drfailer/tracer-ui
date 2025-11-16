@@ -72,39 +72,51 @@ parse_group :: proc(group_str: string, allocator: mem.Allocator) -> (name: strin
     return name, color, true
 }
 
+index_from :: proc(str: string, idx: int, c: u8) -> (res: int) {
+    for res = idx; res < len(str); res += 1 {
+        if str[res] == c {
+            return res
+        }
+    }
+    return res
+}
+
 tracer_parse_line :: proc(
     line: string,
     allocator: mem.Allocator
-) -> (trace: Trace, timelines: []string, group_color: sgui.Color, ok: bool) {
-    line_parts := strings.split(line, ";")
-    defer delete(line_parts)
+) -> (trace: Trace, timeline: string, group_color: sgui.Color, ok: bool) {
+    cur := 3
 
-    if len(line_parts) < 4 {
-        log.error("syntax error.")
-        return
-    }
-
-    switch line_parts[0] {
+    switch line[0:2] {
     case "ev":
-        trace.begin = strconv.parse_u64(line_parts[1]) or_return
+        cur = index_from(line, cur, ';')
+        trace.begin = strconv.parse_u64(line[3:cur]) or_return
         trace.end = trace.begin
     case "du":
-        dur_parts := strings.split(line_parts[1], ",")
-        defer delete(dur_parts)
-        trace.begin = strconv.parse_u64(dur_parts[0]) or_return
-        trace.end = strconv.parse_u64(dur_parts[1]) or_return
+        cur = index_from(line, cur, ',')
+        end_start := cur + 1
+        trace.begin = strconv.parse_u64(line[3:cur]) or_return
+        cur = index_from(line, end_start, ';')
+        trace.end = strconv.parse_u64(line[end_start:cur]) or_return
     }
-    trace.group, group_color = parse_group(line_parts[2], allocator) or_return
-    timelines = strings.split(line_parts[3], ",")
+    group_start := cur + 1
+    cur = index_from(line, group_start, ';')
+    trace.group, group_color = parse_group(line[group_start:cur], allocator) or_return
+    timeline_start := cur + 1
+    cur = index_from(line, timeline_start, ';')
+    timeline = strings.clone(line[timeline_start:cur], allocator)
 
-    if len(line_parts) > 4 {
-        infos, alloc := strings.replace_all(line_parts[4], ",", "\n  - ", allocator)
-        trace.infos = infos if alloc else strings.clone(infos, allocator)
+    if cur < len(line) {
+        alloc := false
+        trace.infos, alloc = strings.replace_all(line[cur:], ",", "\n  - ", allocator)
+        if !alloc {
+            trace.infos = strings.clone(trace.infos, allocator)
+        }
     } else {
         trace.infos = "none"
     }
 
-    return trace, timelines, group_color, true
+    return trace, timeline, group_color, true
 }
 
 tracer_parse_file :: proc(filepath: string) -> (td: ^TracerData) {
@@ -131,8 +143,7 @@ tracer_parse_file :: proc(filepath: string) -> (td: ^TracerData) {
 		}
 		defer delete(line)
 
-        trace, timelines, group_color, ok := tracer_parse_line(strings.trim(line, "\n"), td.allocator)
-        defer delete(timelines)
+        trace, timeline, group_color, ok := tracer_parse_line(strings.trim(line, "\n"), td.allocator)
         if !ok {
             log.error("cannot parse line ", line_idx)
         }
@@ -140,19 +151,17 @@ tracer_parse_file :: proc(filepath: string) -> (td: ^TracerData) {
         min_timestamp = min(min_timestamp, trace.begin)
         max_timestamp = max(max_timestamp, trace.end)
 
-        for timeline in timelines {
-            if timeline not_in td.timelines {
-                td.timelines[strings.clone(timeline, td.allocator)] = make([dynamic]Trace, td.allocator)
-            }
-            append(&td.timelines[timeline], trace)
-
-            if trace.group not_in td.groups_infos {
-                td.groups_infos[trace.group] = GroupInfo{
-                    color = group_color
-                }
-            }
-            update_group_info(&td.groups_infos[trace.group], trace)
+        if timeline not_in td.timelines {
+            td.timelines[timeline] = make([dynamic]Trace, td.allocator)
         }
+        append(&td.timelines[timeline], trace)
+
+        if trace.group not_in td.groups_infos {
+            td.groups_infos[trace.group] = GroupInfo{
+                color = group_color
+            }
+        }
+        update_group_info(&td.groups_infos[trace.group], trace)
     }
 
     for _, traces in td.timelines {
