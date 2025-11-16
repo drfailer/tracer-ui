@@ -4,6 +4,7 @@ import "core:fmt"
 import "core:time"
 import "deps:sgui"
 import "core:math"
+import "core:slice"
 import su "deps:sgui/sdl_utils"
 
 TIMELINE_HEIGHT :: 20
@@ -134,8 +135,24 @@ timelines_widget_draw :: proc(handle: ^sgui.Handle, widget: ^sgui.Widget, user_d
 
     xoffset, yoffset := timelines_widget_time_axis_draw(handle, widget, tw, px_tp_ratio, draw_box.scrollbars.horizontal.position)
 
+    tstart := draw_box.scrollbars.horizontal.position / px_tp_ratio
+
+
     for timeline, traces in tw.tracer_data.timelines {
         if !sgui.radio_button_value(tw.toggle_timelines[timeline]) do continue
+
+        // TODO: test this
+        start_idx, found := slice.binary_search_by(traces[:], tstart, proc(trace: Trace, key: f32) -> slice.Ordering {
+            if cast(f32)trace.begin == key {
+                return .Equal
+            } else if cast(f32)trace.begin > key {
+                return .Greater
+            }
+            return .Less
+        })
+        if !found {
+            start_idx = max(start_idx - 1, 0)
+        }
 
         sgui.draw_text(handle, tw.legend.timelines[timeline], TIMELINE_LMARGINE, cast(f32)yoffset)
 
@@ -145,9 +162,7 @@ timelines_widget_draw :: proc(handle: ^sgui.Handle, widget: ^sgui.Widget, user_d
 
         xoffset = -draw_box.scrollbars.horizontal.position
 
-        // TODO: optimize with this: binary_search_by :: proc(array: []$T, key: $K, f: proc($T, $K) -> Ordering) -> (index: int, found: bool) {…}
-
-        for &trace in traces {
+        for &trace in traces[start_idx:] {
             if !sgui.radio_button_value(tw.toggle_groups[trace.group]) do continue
             dur := trace.end - trace.begin
 
