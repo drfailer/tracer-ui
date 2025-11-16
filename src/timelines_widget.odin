@@ -24,6 +24,7 @@ TimelinesWidget :: struct {
         marker_text: ^su.Text,
     },
     toggle_timelines: map[string]^sgui.Widget,
+    toggle_groups: map[string]^sgui.Widget,
     hovered_trace: ^Trace,
     hovered_trace_text: ^su.Text,
     hover_stopwatch: time.Stopwatch,
@@ -33,12 +34,14 @@ timelines_widget_create :: proc(tracer_data: ^TracerData) -> (tw: TimelinesWidge
     tw.tracer_data = tracer_data
     tw.legend.timelines = make(map[string]^su.Text)
     tw.toggle_timelines = make(map[string]^sgui.Widget)
+    tw.toggle_groups = make(map[string]^sgui.Widget)
     return tw
 }
 
 timelines_widget_destroy :: proc(tw: ^TimelinesWidget) {
     delete(tw.legend.timelines)
     delete(tw.toggle_timelines)
+    delete(tw.toggle_groups)
 }
 
 timelines_widget_init :: proc(handle: ^sgui.Handle, widget: ^sgui.Widget, user_data: rawptr) {
@@ -142,7 +145,10 @@ timelines_widget_draw :: proc(handle: ^sgui.Handle, widget: ^sgui.Widget, user_d
 
         xoffset = -draw_box.scrollbars.horizontal.position
 
+        // TODO: optimize with this: binary_search_by :: proc(array: []$T, key: $K, f: proc($T, $K) -> Ordering) -> (index: int, found: bool) {…}
+
         for &trace in traces {
+            if !sgui.radio_button_value(tw.toggle_groups[trace.group]) do continue
             dur := trace.end - trace.begin
 
             if dur == 0 {
