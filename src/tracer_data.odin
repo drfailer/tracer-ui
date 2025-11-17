@@ -108,7 +108,7 @@ tracer_parse_line :: proc(
 
     if cur < len(line) {
         alloc := false
-        trace.infos, alloc = strings.replace_all(line[cur:], ",", "\n  - ", allocator)
+        trace.infos, alloc = strings.replace_all(line[cur + 1:], ",", "\n  - ", allocator)
         if !alloc {
             trace.infos = strings.clone(trace.infos, allocator)
         }
