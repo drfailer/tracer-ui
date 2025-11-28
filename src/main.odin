@@ -32,7 +32,8 @@ main :: proc() {
 
     set_theme()
 
-    tracer_data := tracer_parse_file(os.args[1])
+    tracer_data, ok := tracer_parse_file(os.args[1])
+    assert(ok)
     defer tracer_data_destroy(tracer_data)
     timelines_widget := timelines_widget_create(tracer_data)
     defer timelines_widget_destroy(&timelines_widget)

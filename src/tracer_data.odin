@@ -5,6 +5,7 @@ import "core:strconv"
 import "core:bufio"
 import "core:os"
 import "core:mem"
+import "base:runtime"
 import "core:fmt"
 import "core:log"
 import "core:slice"
@@ -19,33 +20,52 @@ GroupInfo :: struct {
     dur_count: int,
 }
 
+TimelineInfo :: struct {
+    // TODO
+}
+
 TracerData :: struct {
-    timelines: map[string][dynamic]Trace,
+    dus: map[string][dynamic]Du,
+    evs: map[string][dynamic]Ev,
     groups_infos: map[string]GroupInfo,
+    timelines_infos: map[string]TimelineInfo,
+    tstart, tend: Timestamp,
     ttl_time: u64,
     arena: mem.Dynamic_Arena,
     allocator: mem.Allocator,
 }
 
-Trace :: struct {
+Du :: struct {
     begin, end: Timestamp,
     group: string,
     infos: string,
 }
 
+Ev :: struct {
+    tp: Timestamp,
+    group: string,
+    infos: string,
+}
+
+Trace :: union { ^Du, ^Ev }
+
 tracer_data_create :: proc() -> (td: ^TracerData) {
     td = new(TracerData)
     mem.dynamic_arena_init(&td.arena)
     td.allocator = mem.dynamic_arena_allocator(&td.arena)
-    td.timelines = make(map[string][dynamic]Trace)
+    td.evs = make(map[string][dynamic]Ev)
+    td.dus = make(map[string][dynamic]Du)
     td.groups_infos = make(map[string]GroupInfo)
+    td.timelines_infos = make(map[string]TimelineInfo)
     return
 }
 
 tracer_data_destroy :: proc(td: ^TracerData) {
     mem.dynamic_arena_destroy(&td.arena)
-    delete(td.timelines)
+    delete(td.evs)
+    delete(td.dus)
     delete(td.groups_infos)
+    delete(td.timelines_infos)
     free(td)
 }
 
@@ -68,7 +88,10 @@ parse_group :: proc(group_str: string, allocator: mem.Allocator) -> (name: strin
     if len(parts) == 1 {
         return name, color, true
     }
-    color = parse_color(parts[1]) or_return
+    if color, ok = parse_color(parts[1]); !ok {
+        log.error("cannot parse color", parts[1])
+        return
+    }
     return name, color, true
 }
 
@@ -81,108 +104,139 @@ index_from :: proc(str: string, idx: int, c: u8) -> (res: int) {
     return res
 }
 
-tracer_parse_line :: proc(
-    line: string,
-    allocator: mem.Allocator
-) -> (trace: Trace, timeline: string, group_color: sgui.Color, ok: bool) {
-    cur := 3
-
-    switch line[0:2] {
-    case "ev":
-        cur = index_from(line, cur, ';')
-        trace.begin = strconv.parse_u64(line[3:cur]) or_return
-        trace.end = trace.begin
-    case "du":
-        cur = index_from(line, cur, ',')
-        end_start := cur + 1
-        trace.begin = strconv.parse_u64(line[3:cur]) or_return
-        cur = index_from(line, end_start, ';')
-        trace.end = strconv.parse_u64(line[end_start:cur]) or_return
+tracer_parse_type :: proc($type: typeid, data: []byte) -> (res: u64, rest: []byte, ok: bool) {
+    if len(data) < size_of(type) {
+        log.error("cannot parse type", type_info_of(type), "(string too small)")
+        return
     }
-    group_start := cur + 1
-    cur = index_from(line, group_start, ';')
-    trace.group, group_color = parse_group(line[group_start:cur], allocator) or_return
-    timeline_start := cur + 1
-    cur = index_from(line, timeline_start, ';')
-    timeline = strings.clone(line[timeline_start:cur], allocator)
-
-    if cur < len(line) {
-        alloc := false
-        trace.infos, alloc = strings.replace_all(line[cur + 1:], ",", "\n  - ", allocator)
-        if !alloc {
-            trace.infos = strings.clone(trace.infos, allocator)
-        }
-    } else {
-        trace.infos = "none"
-    }
-
-    return trace, timeline, group_color, true
+    res = (cast(^u64)raw_data(data[0:size_of(type)]))^
+    return res, data[size_of(type):], true
 }
 
-tracer_parse_file :: proc(filepath: string) -> (td: ^TracerData) {
-	file, ferr := os.open(filepath)
-	if ferr != 0 {
-        log.error("cannot open file.")
+tracer_parse_string :: proc(data: []byte) -> (res: string, rest: []byte, ok: bool) {
+    strsize: u64
+    strsize, rest = tracer_parse_type(u64, data) or_return
+    if  len(rest) < int(strsize) {
+        log.error("cannot parse string of size", strsize, "(data of size", len(rest), ")")
+        return
+    }
+    res = string(rest[0:strsize])
+    return res, rest[strsize:], true
+}
+
+// [EV::][<tp:8>        ][<group:8+size>][<timeline:8+size>][<infos:8+size>]
+// [DU::][<tp1:8><tp2:8>][<group:8+size>][<timeline:8+size>][<infos:8+size>]
+// TEST: force 32 bit compare over starting symbol
+// NOTE: the symbol is required for future parallel parsing
+// EV_TYPE :: (cast(^u32)raw_data("EV::"))^
+// DU_TYPE :: (cast(^u32)raw_data("DU::"))^
+
+add_group :: proc(group_name: string, color: sgui.Color, td: ^TracerData) {
+    if group_name not_in td.groups_infos {
+        td.groups_infos[group_name] = GroupInfo{
+            color = color,
+        }
+    }
+}
+
+add_timeline :: proc(timeline_name: string, td: ^TracerData) {
+    if timeline_name not_in td.timelines_infos {
+        // the map does not copy the key
+        name_cpy := strings.clone(timeline_name, td.allocator)
+        td.timelines_infos[name_cpy] = TimelineInfo{}
+    }
+}
+
+
+tracer_parse_trace :: proc(data: []byte, td: ^TracerData) -> (rest: []byte, ok: bool) {
+    group_str, timeline_str, infos_str: string
+    group_color: sgui.Color
+
+    // type, rest = tracer_parse_type(u32, data)
+    rest = data[4:]
+    switch string(data[:4]) {
+    case "EV::":
+        ev: Ev
+
+        ev.tp, rest, ok = tracer_parse_type(Timestamp, rest) //or_return
+        assert(ok)
+        group_str, rest, ok = tracer_parse_string(rest) //or_return
+        assert(ok)
+        timeline_str, rest, ok = tracer_parse_string(rest) //or_return
+        assert(ok)
+        infos_str, rest, ok = tracer_parse_string(rest) //or_return
+        assert(ok)
+
+        err: runtime.Allocator_Error
+        ev.infos, err = strings.clone(infos_str, td.allocator)
+        assert(err == nil)
+
+        ev.group, group_color, ok = parse_group(group_str, td.allocator) //or_return
+        assert(ok)
+        add_group(ev.group, group_color, td)
+        gi, gi_ok := &td.groups_infos[ev.group]
+        assert(gi_ok)
+        gi.event_count += 1
+
+        add_timeline(timeline_str, td)
+        if timeline_str not_in td.evs {
+            td.evs[timeline_str] = make([dynamic]Ev, td.allocator)
+        }
+        append(&td.evs[timeline_str], ev)
+        td.tend = ev.tp
+    case "DU::":
+        du: Du
+
+        du.begin, rest, ok = tracer_parse_type(Timestamp, rest) //or_return
+        assert(ok)
+        du.end, rest, ok = tracer_parse_type(Timestamp, rest) //or_return
+        assert(ok)
+        group_str, rest, ok = tracer_parse_string(rest) //or_return
+        assert(ok)
+        timeline_str, rest, ok = tracer_parse_string(rest) //or_return
+        assert(ok)
+        infos_str, rest, ok = tracer_parse_string(rest) //or_return
+        assert(ok)
+
+        err: runtime.Allocator_Error
+        du.infos, err = strings.clone(infos_str, td.allocator)
+        assert(err == nil)
+
+        du.group, group_color, ok = parse_group(group_str, td.allocator) //or_return
+        assert(ok)
+        add_group(du.group, group_color, td)
+        gi, gi_ok := &td.groups_infos[du.group]
+        assert(gi_ok)
+        gi.dur_count += 1
+        gi.ttl_dur += du.end - du.begin
+
+        add_timeline(timeline_str, td)
+        if timeline_str not_in td.dus {
+            td.dus[timeline_str] = make([dynamic]Du, td.allocator)
+        }
+        append(&td.dus[timeline_str], du)
+        td.tend = du.end
+    }
+    return rest, true
+}
+
+tracer_parse_file :: proc(filepath: string) -> (td: ^TracerData, ok: bool) {
+    data: []byte
+    data, ok = os.read_entire_file(filepath)
+	if !ok {
+        log.error("cannot read entire file")
 		return
 	}
-	defer os.close(file)
+	defer delete(data)
 
     td = tracer_data_create()
-    min_timestamp, max_timestamp : Timestamp = 0, 0
 
-	reader: bufio.Reader
-	buffer: [1024]byte
-    stream := os.stream_from_handle(file)
-	bufio.reader_init_with_buf(&reader, stream, buffer[:])
-	defer bufio.reader_destroy(&reader)
-
-    for line_idx := 1;; line_idx += 1 {
-		line, err := bufio.reader_read_string(&reader, '\n')
-		if err != nil {
-			break
-		}
-		defer delete(line)
-
-        trace, timeline, group_color, ok := tracer_parse_line(strings.trim(line, "\n"), td.allocator)
-        if !ok {
-            log.error("cannot parse line ", line_idx)
-        }
-
-        min_timestamp = min(min_timestamp, trace.begin)
-        max_timestamp = max(max_timestamp, trace.end)
-
-        if timeline not_in td.timelines {
-            td.timelines[timeline] = make([dynamic]Trace, td.allocator)
-        }
-        append(&td.timelines[timeline], trace)
-
-        if trace.group not_in td.groups_infos {
-            td.groups_infos[trace.group] = GroupInfo{
-                color = group_color
-            }
-        }
-        update_group_info(&td.groups_infos[trace.group], trace)
+    rest := data[:]
+    for len(rest) > 0 {
+        rest = tracer_parse_trace(rest, td) or_return
     }
-
-    for _, traces in td.timelines {
-        slice.sort_by(traces[:], proc(a, b: Trace) -> bool {
-            return a.begin < b.begin
-        })
-    }
-    td.ttl_time = max_timestamp - min_timestamp
-    return td
-}
-
-@(private="file")
-update_group_info :: proc(group_info: ^GroupInfo, trace: Trace) {
-    dur := trace.end - trace.begin
-
-    if dur == 0 {
-        group_info.event_count += 1
-    } else {
-        group_info.dur_count += 1
-        group_info.ttl_dur += dur
-    }
+    td.ttl_time = td.tend - td.tstart
+    return td, true
 }
 
 group_info_to_string :: proc(group: string, group_info: GroupInfo) -> string {
@@ -210,19 +264,22 @@ time_to_string :: proc(t: $T) -> string {
 }
 
 trace_to_string :: proc(trace: Trace) -> string {
-    dur := trace.end - trace.begin
-    if dur == 0 {
-        bt_str := time_to_string(trace.begin)
+    switch t in trace {
+    case ^Ev:
+        bt_str := time_to_string(t.tp)
         defer delete(bt_str)
         return fmt.aprintf("Event:\n- time point: {}\n- group: {}\n- infos:\n  - {}",
-                           bt_str, trace.group, trace.infos)
+                           bt_str, t.group, t.infos)
+    case ^Du:
+        dur := t.end - t.begin
+        bt_str := time_to_string(t.begin)
+        defer delete(bt_str)
+        et_str := time_to_string(t.end)
+        defer delete(et_str)
+        dur_str := time_to_string(dur)
+        defer delete(dur_str)
+        return fmt.aprintf("Duration:\n- begin: {}\n- end: {}\n- dur: {}\n- group: {}\n- infos:\n  - {}",
+            bt_str, et_str, dur_str, t.group, t.infos)
     }
-    bt_str := time_to_string(trace.begin)
-    defer delete(bt_str)
-    et_str := time_to_string(trace.end)
-    defer delete(et_str)
-    dur_str := time_to_string(dur)
-    defer delete(dur_str)
-    return fmt.aprintf("Duration:\n- begin: {}\n- end: {}\n- dur: {}\n- group: {}\n- infos:\n  - {}",
-                       bt_str, et_str, dur_str, trace.group, trace.infos)
+    return ""
 }

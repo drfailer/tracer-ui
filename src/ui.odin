@@ -106,7 +106,7 @@ side_pannel :: proc(timelines_widget: ^TimelinesWidget) -> (pannel: ^sgui.Widget
 
     // toggle timelines buttons
     sgui.box_add_widget(pannel, sgui.text("timelines:"))
-    for timeline in timelines_widget.tracer_data.timelines {
+    for timeline in timelines_widget.tracer_data.timelines_infos {
         button := sgui.radio_button(timeline, default_checked = true)
         timelines_widget.toggle_timelines[timeline] = button
         sgui.box_add_widget(pannel, button)

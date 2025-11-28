@@ -26,7 +26,7 @@ TimelinesWidget :: struct {
     },
     toggle_timelines: map[string]^sgui.Widget,
     toggle_groups: map[string]^sgui.Widget,
-    hovered_trace: ^Trace,
+    hovered_trace: Trace,
     hovered_trace_text: ^su.Text,
     hover_stopwatch: time.Stopwatch,
 }
@@ -57,7 +57,7 @@ timelines_widget_init :: proc(handle: ^sgui.Handle, widget: ^sgui.Widget, user_d
     su.text_set_color(tw.legend.marker_text, su.Color{0, 0, 0, 255})
     su.text_update(tw.legend.marker_text)
 
-    for timeline in tw.tracer_data.timelines {
+    for timeline in tw.tracer_data.timelines_infos {
         text := sgui.create_text(handle, timeline, sgui.FONT, sgui.FONT_SIZE)
         su.text_set_color(text, su.Color{0, 0, 0, 255})
         su.text_update(text)
@@ -82,7 +82,7 @@ timelines_widget_update :: proc(handle: ^sgui.Handle, widget: ^sgui.Widget, user
         TIMELINE_LMARGINE + tw.legend.w + TIMELINE_LEGEND_SPACING \
             + cast(f32)tw.tracer_data.ttl_time * px_tp_ratio \
             + TIMELINE_RMARGINE,
-        TIMELINE_TMARGINE + cast(f32)len(tw.tracer_data.timelines) * (TIMELINE_HEIGHT + TIMELINE_SPACING) + TIMELINE_BMARGINE,
+        TIMELINE_TMARGINE + cast(f32)len(tw.legend.timelines) * (TIMELINE_HEIGHT + TIMELINE_SPACING) + TIMELINE_BMARGINE,
     }
     return size
 }
@@ -128,6 +128,28 @@ timelines_widget_time_axis_draw :: proc(
     return
 }
 
+find_dus_start_idx :: proc(dus: [dynamic]Du, tstart: f32) -> (idx: int, ok: bool) {
+    return slice.binary_search_by(dus[:], tstart, proc(du: Du, key: f32) -> slice.Ordering {
+        if cast(f32)du.end == key {
+            return .Equal
+        } else if cast(f32)du.end > key {
+            return .Greater
+        }
+        return .Less
+    })
+}
+
+find_evs_start_idx :: proc(evs: [dynamic]Ev, tstart: f32) -> (idx: int, ok: bool) {
+    return slice.binary_search_by(evs[:], tstart, proc(ev: Ev, key: f32) -> slice.Ordering {
+        if cast(f32)ev.tp == key {
+            return .Equal
+        } else if cast(f32)ev.tp > key {
+            return .Greater
+        }
+        return .Less
+    })
+}
+
 timelines_widget_draw :: proc(handle: ^sgui.Handle, widget: ^sgui.Widget, user_data: rawptr) {
     tw := cast(^TimelinesWidget)user_data
     draw_box := widget.data.(sgui.DrawBox)
@@ -137,23 +159,8 @@ timelines_widget_draw :: proc(handle: ^sgui.Handle, widget: ^sgui.Widget, user_d
 
     tstart := draw_box.scrollbars.horizontal.position / px_tp_ratio
 
-
-    for timeline, traces in tw.tracer_data.timelines {
+    for timeline in tw.tracer_data.timelines_infos {
         if !sgui.radio_button_value(tw.toggle_timelines[timeline]) do continue
-
-        // TODO: test this
-        start_idx, found := slice.binary_search_by(traces[:], tstart, proc(trace: Trace, key: f32) -> slice.Ordering {
-            if trace.begin == trace.end do return .Greater // TODO: this probably not work if there are only events
-            if cast(f32)trace.end == key {
-                return .Equal
-            } else if cast(f32)trace.end > key {
-                return .Greater
-            }
-            return .Less
-        })
-        if !found {
-            start_idx = max(start_idx - 1, 0)
-        }
 
         sgui.draw_text(handle, tw.legend.timelines[timeline], TIMELINE_LMARGINE, cast(f32)yoffset)
 
@@ -161,30 +168,15 @@ timelines_widget_draw :: proc(handle: ^sgui.Handle, widget: ^sgui.Widget, user_d
         handle.rel_rect.x = old_rel_rect.x + tw.legend.w + TIMELINE_LMARGINE + TIMELINE_LEGEND_SPACING
         defer handle.rel_rect = old_rel_rect
 
+
         xoffset = -draw_box.scrollbars.horizontal.position
 
-        for &trace in traces[start_idx:] {
-            if !sgui.radio_button_value(tw.toggle_groups[trace.group]) do continue
-            dur := trace.end - trace.begin
-
-            if dur == 0 {
-                x : f32 = cast(f32)trace.begin * px_tp_ratio - EVENT_THICKNESS / 2. + xoffset
-                y : f32 = yoffset
-                w : f32 = EVENT_THICKNESS
-                h : f32 = TIMELINE_HEIGHT
-
-                if x + w < 0 {
-                    continue
-                } else if x > widget.w {
-                    break
-                }
-
-                sgui.draw_rect(handle, x, y, w, h, tw.tracer_data.groups_infos[trace.group].color)
-                if sgui.mouse_on_region(handle, x, y, w, h) {
-                    tw.hovered_trace = &trace
-                }
-            } else {
-                x : f32 = cast(f32)trace.begin * px_tp_ratio + xoffset
+        // draw durations
+        if dus, ok := tw.tracer_data.dus[timeline]; ok {
+            start_idx, found := find_dus_start_idx(dus, tstart)
+            for &du in dus[start_idx:] {
+                dur := du.end - du.begin
+                x : f32 = cast(f32)du.begin * px_tp_ratio + xoffset
                 y : f32 = yoffset
                 w : f32 = cast(f32)dur * px_tp_ratio
                 h : f32 = TIMELINE_HEIGHT
@@ -196,9 +188,31 @@ timelines_widget_draw :: proc(handle: ^sgui.Handle, widget: ^sgui.Widget, user_d
                 }
 
                 sgui.draw_rounded_box_with_border(handle, x, y, w, h, 6, 1,
-                    sgui.Color{200, 200, 200, 255}, tw.tracer_data.groups_infos[trace.group].color)
+                    sgui.Color{200, 200, 200, 255}, tw.tracer_data.groups_infos[du.group].color)
                 if sgui.mouse_on_region(handle, x, y, w, h) {
-                    tw.hovered_trace = &trace
+                    tw.hovered_trace = &du
+                }
+            }
+        }
+
+        // draw events
+        if evs, ok := tw.tracer_data.evs[timeline]; ok {
+            start_idx, found := find_evs_start_idx(evs, tstart)
+            for &ev in evs[start_idx:] {
+                x : f32 = cast(f32)ev.tp * px_tp_ratio - EVENT_THICKNESS / 2. + xoffset
+                y : f32 = yoffset
+                w : f32 = EVENT_THICKNESS
+                h : f32 = TIMELINE_HEIGHT
+
+                if x + w < 0 {
+                    continue
+                } else if x > widget.w {
+                    break
+                }
+
+                sgui.draw_rect(handle, x, y, w, h, tw.tracer_data.groups_infos[ev.group].color)
+                if sgui.mouse_on_region(handle, x, y, w, h) {
+                    tw.hovered_trace = &ev
                 }
             }
         }
@@ -206,13 +220,15 @@ timelines_widget_draw :: proc(handle: ^sgui.Handle, widget: ^sgui.Widget, user_d
         yoffset += TIMELINE_HEIGHT
         sgui.draw_line(handle, 0, cast(f32)yoffset + TIMELINE_SPACING / 2., widget.w, cast(f32)yoffset + TIMELINE_SPACING / 2., sgui.Color{0, 0, 0, 255})
         yoffset += TIMELINE_SPACING
+    }
 
-        if time.duration_seconds(time.stopwatch_duration(tw.hover_stopwatch)) > 0.8 {
-            sgui.add_ordered_draw(handle, 0, proc(handle: ^sgui.Handle, draw_data: rawptr) {
-                tw := cast(^TimelinesWidget)draw_data
+    // draw floating window when the mouse stays on an element
+    if time.duration_seconds(time.stopwatch_duration(tw.hover_stopwatch)) > 0.8 {
+        sgui.add_ordered_draw(handle, 0, proc(handle: ^sgui.Handle, draw_data: rawptr) {
+            tw := cast(^TimelinesWidget)draw_data
 
-                if tw.hovered_trace == nil do return
-                desc := trace_to_string(tw.hovered_trace^)
+            if tw.hovered_trace == nil do return
+                desc := trace_to_string(tw.hovered_trace)
                 defer delete(desc)
                 su.text_set_text(tw.hovered_trace_text, desc)
                 su.text_update(tw.hovered_trace_text)
@@ -231,7 +247,6 @@ timelines_widget_draw :: proc(handle: ^sgui.Handle, widget: ^sgui.Widget, user_d
                     sgui.Color{240, 240, 240, 255}
                 )
                 sgui.draw_text(handle, tw.hovered_trace_text, handle.mouse_x - w - padding, handle.mouse_y + padding)
-            }, tw)
-        }
+        }, tw)
     }
 }
