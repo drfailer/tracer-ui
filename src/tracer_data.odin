@@ -116,6 +116,9 @@ tracer_parse_type :: proc($type: typeid, data: []byte) -> (res: u64, rest: []byt
 tracer_parse_string :: proc(data: []byte) -> (res: string, rest: []byte, ok: bool) {
     strsize: u64
     strsize, rest = tracer_parse_type(u64, data) or_return
+    if strsize == 0 {
+        return "", rest, true
+    }
     if  len(rest) < int(strsize) {
         log.error("cannot parse string of size", strsize, "(data of size", len(rest), ")")
         return
