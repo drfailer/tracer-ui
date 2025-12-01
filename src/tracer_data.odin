@@ -155,8 +155,14 @@ add_timeline :: proc(timeline_name: string, td: ^TracerData) -> TimelineInfo {
 
 
 tracer_parse_trace :: proc(data: []byte, td: ^TracerData) -> (rest: []byte, ok: bool) {
+    if len(data) == 0 do return data, true
+
     group_str, timeline_str, infos_str: string
     group_color: sgui.Color
+
+    if len(data) < 4 {
+        return rest, true // skip trailing data if any
+    }
 
     // type, rest = tracer_parse_type(u32, data)
     rest = data[4:]
