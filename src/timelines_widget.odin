@@ -175,6 +175,7 @@ timelines_widget_draw :: proc(handle: ^sgui.Handle, widget: ^sgui.Widget, user_d
         if dus, ok := tw.tracer_data.dus[timeline]; ok {
             start_idx, found := find_dus_start_idx(dus, tstart)
             for &du in dus[start_idx:] {
+                if !sgui.radio_button_value(tw.toggle_groups[du.group]) do continue
                 dur := du.end - du.begin
                 x : f32 = cast(f32)du.begin * px_tp_ratio + xoffset
                 y : f32 = yoffset
@@ -199,6 +200,7 @@ timelines_widget_draw :: proc(handle: ^sgui.Handle, widget: ^sgui.Widget, user_d
         if evs, ok := tw.tracer_data.evs[timeline]; ok {
             start_idx, found := find_evs_start_idx(evs, tstart)
             for &ev in evs[start_idx:] {
+                if !sgui.radio_button_value(tw.toggle_groups[ev.group]) do continue
                 x : f32 = cast(f32)ev.tp * px_tp_ratio - EVENT_THICKNESS / 2. + xoffset
                 y : f32 = yoffset
                 w : f32 = EVENT_THICKNESS
