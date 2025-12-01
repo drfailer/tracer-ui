@@ -21,7 +21,7 @@ GroupInfo :: struct {
 }
 
 TimelineInfo :: struct {
-    // TODO
+    name: string,
 }
 
 TracerData :: struct {
@@ -142,12 +142,15 @@ add_group :: proc(group_name: string, color: sgui.Color, td: ^TracerData) {
     }
 }
 
-add_timeline :: proc(timeline_name: string, td: ^TracerData) {
+add_timeline :: proc(timeline_name: string, td: ^TracerData) -> TimelineInfo {
     if timeline_name not_in td.timelines_infos {
         // the map does not copy the key
         name_cpy := strings.clone(timeline_name, td.allocator)
-        td.timelines_infos[name_cpy] = TimelineInfo{}
+        td.timelines_infos[name_cpy] = TimelineInfo{
+            name = name_cpy,
+        }
     }
+    return td.timelines_infos[timeline_name]
 }
 
 
@@ -181,11 +184,11 @@ tracer_parse_trace :: proc(data: []byte, td: ^TracerData) -> (rest: []byte, ok: 
         assert(gi_ok)
         gi.event_count += 1
 
-        add_timeline(timeline_str, td)
-        if timeline_str not_in td.evs {
-            td.evs[timeline_str] = make([dynamic]Ev, td.allocator)
+        ti := add_timeline(timeline_str, td)
+        if ti.name not_in td.evs {
+            td.evs[ti.name] = make([dynamic]Ev, td.allocator)
         }
-        append(&td.evs[timeline_str], ev)
+        append(&td.evs[ti.name], ev)
         td.tend = ev.tp
     case "DU::":
         du: Du
@@ -213,11 +216,11 @@ tracer_parse_trace :: proc(data: []byte, td: ^TracerData) -> (rest: []byte, ok: 
         gi.dur_count += 1
         gi.ttl_dur += du.end - du.begin
 
-        add_timeline(timeline_str, td)
-        if timeline_str not_in td.dus {
-            td.dus[timeline_str] = make([dynamic]Du, td.allocator)
+        ti := add_timeline(timeline_str, td)
+        if ti.name not_in td.dus {
+            td.dus[ti.name] = make([dynamic]Du, td.allocator)
         }
-        append(&td.dus[timeline_str], du)
+        append(&td.dus[ti.name], du)
         td.tend = du.end
     }
     return rest, true
