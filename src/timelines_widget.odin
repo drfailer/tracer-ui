@@ -5,6 +5,7 @@ import "core:time"
 import "deps:sgui"
 import "core:math"
 import "core:slice"
+import "core:log"
 import su "deps:sgui/sdl_utils"
 
 TIMELINE_HEIGHT :: 20
@@ -130,7 +131,7 @@ timelines_widget_time_axis_draw :: proc(
 
 find_dus_start_idx :: proc(dus: [dynamic]Du, tstart: f32) -> (idx: int, ok: bool) {
     return slice.binary_search_by(dus[:], tstart, proc(du: Du, key: f32) -> slice.Ordering {
-        if cast(f32)du.end == key {
+        if cast(f32)du.begin <= key && key <= cast(f32)du.end {
             return .Equal
         } else if cast(f32)du.end > key {
             return .Greater
@@ -175,6 +176,7 @@ timelines_widget_draw :: proc(handle: ^sgui.Handle, widget: ^sgui.Widget, user_d
         if dus, ok := tw.tracer_data.dus[timeline]; ok {
             start_idx, found := find_dus_start_idx(dus, tstart)
             for &du in dus[start_idx:] {
+            // for &du in dus {
                 if !sgui.radio_button_value(tw.toggle_groups[du.group]) do continue
                 dur := du.end - du.begin
                 x : f32 = cast(f32)du.begin * px_tp_ratio + xoffset
@@ -200,6 +202,7 @@ timelines_widget_draw :: proc(handle: ^sgui.Handle, widget: ^sgui.Widget, user_d
         if evs, ok := tw.tracer_data.evs[timeline]; ok {
             start_idx, found := find_evs_start_idx(evs, tstart)
             for &ev in evs[start_idx:] {
+            // for &ev in evs {
                 if !sgui.radio_button_value(tw.toggle_groups[ev.group]) do continue
                 x : f32 = cast(f32)ev.tp * px_tp_ratio - EVENT_THICKNESS / 2. + xoffset
                 y : f32 = yoffset
