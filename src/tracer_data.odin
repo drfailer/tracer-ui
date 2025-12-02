@@ -104,13 +104,13 @@ index_from :: proc(str: string, idx: int, c: u8) -> (res: int) {
     return res
 }
 
-tracer_parse_type :: proc($type: typeid, data: []byte) -> (res: u64, rest: []byte, ok: bool) {
-    if len(data) < size_of(type) {
-        log.error("cannot parse type", type_info_of(type), "(string too small)")
+tracer_parse_type :: proc($T: typeid, data: []byte) -> (res: T, rest: []byte, ok: bool) {
+    if len(data) < size_of(T) {
+        log.error("cannot parse type", type_info_of(T), "(string too small)")
         return
     }
-    res = (cast(^u64)raw_data(data[0:size_of(type)]))^
-    return res, data[size_of(type):], true
+    res = (cast(^T)raw_data(data[0:size_of(T)]))^
+    return res, data[size_of(T):], true
 }
 
 tracer_parse_string :: proc(data: []byte) -> (res: string, rest: []byte, ok: bool) {
