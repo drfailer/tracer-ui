@@ -281,7 +281,7 @@ trace_to_string :: proc(trace: Trace) -> string {
         bt_str := time_to_string(t.tp)
         defer delete(bt_str)
         if len(t.infos) > 0 {
-            return fmt.aprintf("Event:\n- time point: {}\n- group: {}\n- infos:\n  - {}",
+            return fmt.aprintf("Event:\n- time point: {}\n- group: {}\n- infos:\n{}",
                                bt_str, t.group, t.infos)
         }
         return fmt.aprintf("Event:\n- time point: {}\n- group: {}", bt_str, t.group)
@@ -294,7 +294,7 @@ trace_to_string :: proc(trace: Trace) -> string {
         dur_str := time_to_string(dur)
         defer delete(dur_str)
         if len(t.infos) > 0 {
-            return fmt.aprintf("Duration:\n- begin: {}\n- end: {}\n- dur: {}\n- group: {}\n- infos:\n  - {}",
+            return fmt.aprintf("Duration:\n- begin: {}\n- end: {}\n- dur: {}\n- group: {}\n- infos:\n{}",
                 bt_str, et_str, dur_str, t.group, t.infos)
         }
         return fmt.aprintf("Duration:\n- begin: {}\n- end: {}\n- dur: {}\n- group: {}",

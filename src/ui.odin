@@ -166,8 +166,8 @@ main_ui :: proc(handle: ^sgui.Handle, timelines_widget: ^TimelinesWidget) -> ^sg
                 attr = sgui.DrawBoxAttributes{
                     props = sgui.DrawBoxProperties{.WithScrollbar, .Zoomable},
                     zoom_min = 1.,
-                    zoom_max = 1000.,
-                    zoom_step = 1.,
+                    zoom_max = 1000000.,
+                    zoom_step = 10.,
                     scrollbars_attr = sgui.OPTS.scrollbars_attr,
                 }
             ),
