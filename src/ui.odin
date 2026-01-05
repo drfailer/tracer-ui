@@ -9,6 +9,8 @@ import su "deps:sgui/sdl_utils"
 SIDE_PANNEL_TAG :: 1
 TIMELINES_WIDGET_TAG :: 1
 
+IMAGE_PATH :: #config(IMAGE_PATH, "ressources/images")
+
 set_theme :: proc() {
     using sgui
     OPTS = Opts{
@@ -127,9 +129,30 @@ side_pannel :: proc(timelines_widget: ^TimelinesWidget) -> (pannel: ^sgui.Widget
 header :: proc() -> ^sgui.Widget {
     return sgui.vbox(
         sgui.hbox(
-            sgui.button("MENU", proc(handle: ^sgui.Handle, _: rawptr) {
-                sgui.widget_toggle(handle->widget(SIDE_PANNEL_TAG), handle)
-            }),
+            sgui.icon_button(
+                sgui.IconData{file = IMAGE_PATH + "/menu.png"},
+                proc(handle: ^sgui.Handle, _: rawptr) {
+                    sgui.widget_toggle(handle->widget(SIDE_PANNEL_TAG), handle)
+                },
+                w = 20, h = 20,
+                attr = {
+                    style = {
+                        padding = {4, 4, 4, 4},
+                        corner_radius = 5,
+                        colors = {
+                            .Idle = {
+                                bg = {255, 255, 255, 255},
+                            },
+                            .Hovered = {
+                                bg = {220, 220, 220, 255},
+                            },
+                            .Clicked = {
+                                bg = {220, 220, 220, 255},
+                            },
+                        },
+                    }
+                }
+            ),
             sgui.center(sgui.text("TRACER")),
             attr = sgui.BoxAttributes{
                 props = sgui.BoxProperties{.FitH},
