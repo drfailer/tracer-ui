@@ -42,7 +42,6 @@ main :: proc() {
 
     sgui.add_layer(handle, main_ui(handle, &timelines_widget))
 
-    sgui.init(handle)
     sgui.run(handle)
     sgui.destroy(handle)
 }

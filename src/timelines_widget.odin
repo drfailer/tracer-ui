@@ -67,7 +67,8 @@ timelines_widget_init :: proc(handle: ^sgui.Handle, widget: ^sgui.Widget, user_d
         tw.legend.w = max(tw.legend.w, w)
     }
     sgui.add_event_handler(handle, widget, proc(widget: ^sgui.Widget, event: sgui.MouseMotionEvent, handle: ^sgui.Handle) -> bool {
-        tw := cast(^TimelinesWidget)widget.data.(sgui.DrawBox).user_data
+        box := cast(^sgui.DrawBox)widget
+        tw := cast(^TimelinesWidget)box.user_data
         time.stopwatch_reset(&tw.hover_stopwatch)
         time.stopwatch_start(&tw.hover_stopwatch)
         tw.hovered_trace = nil
@@ -77,8 +78,8 @@ timelines_widget_init :: proc(handle: ^sgui.Handle, widget: ^sgui.Widget, user_d
 
 timelines_widget_update :: proc(handle: ^sgui.Handle, widget: ^sgui.Widget, user_data: rawptr) -> sgui.ContentSize {
     tw := cast(^TimelinesWidget)user_data
-    draw_box := widget.data.(sgui.DrawBox)
-    px_tp_ratio :=  draw_box.zoombox.lvl * widget.w / cast(f32)tw.tracer_data.ttl_time
+    box := cast(^sgui.DrawBox)widget
+    px_tp_ratio :=  box.zoombox.lvl * widget.w / cast(f32)tw.tracer_data.ttl_time
     size := sgui.ContentSize{
         TIMELINE_LMARGINE + tw.legend.w + TIMELINE_LEGEND_SPACING \
             + cast(f32)tw.tracer_data.ttl_time * px_tp_ratio \
@@ -153,12 +154,12 @@ find_evs_start_idx :: proc(evs: [dynamic]Ev, tstart: f32) -> (idx: int, ok: bool
 
 timelines_widget_draw :: proc(handle: ^sgui.Handle, widget: ^sgui.Widget, user_data: rawptr) {
     tw := cast(^TimelinesWidget)user_data
-    draw_box := widget.data.(sgui.DrawBox)
-    px_tp_ratio := draw_box.zoombox.lvl * widget.w / cast(f32)tw.tracer_data.ttl_time
+    box := cast(^sgui.DrawBox)widget
+    px_tp_ratio := box.zoombox.lvl * widget.w / cast(f32)tw.tracer_data.ttl_time
 
-    xoffset, yoffset := timelines_widget_time_axis_draw(handle, widget, tw, px_tp_ratio, draw_box.scrollbars.horizontal.position)
+    xoffset, yoffset := timelines_widget_time_axis_draw(handle, widget, tw, px_tp_ratio, box.scrollbars.horizontal.position)
 
-    tstart := draw_box.scrollbars.horizontal.position / px_tp_ratio
+    tstart := box.scrollbars.horizontal.position / px_tp_ratio
 
     for timeline in tw.tracer_data.timelines_infos {
         if !sgui.radio_button_value(tw.toggle_timelines[timeline]) do continue
@@ -170,7 +171,7 @@ timelines_widget_draw :: proc(handle: ^sgui.Handle, widget: ^sgui.Widget, user_d
         defer handle.rel_rect = old_rel_rect
 
 
-        xoffset = -draw_box.scrollbars.horizontal.position
+        xoffset = -box.scrollbars.horizontal.position
 
         // draw durations
         if dus, ok := tw.tracer_data.dus[timeline]; ok {
@@ -228,7 +229,7 @@ timelines_widget_draw :: proc(handle: ^sgui.Handle, widget: ^sgui.Widget, user_d
     }
 
     // draw floating window when the mouse stays on an element
-    if time.duration_seconds(time.stopwatch_duration(tw.hover_stopwatch)) > 0.8 {
+    if time.duration_seconds(time.stopwatch_duration(tw.hover_stopwatch)) > 0.5 {
         sgui.add_ordered_draw(handle, 0, proc(handle: ^sgui.Handle, draw_data: rawptr) {
             tw := cast(^TimelinesWidget)draw_data
 

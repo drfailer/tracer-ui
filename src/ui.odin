@@ -128,7 +128,7 @@ header :: proc() -> ^sgui.Widget {
     return sgui.vbox(
         sgui.hbox(
             sgui.button("MENU", proc(handle: ^sgui.Handle, _: rawptr) {
-                sgui.widget_toggle(handle.tagged_widgets[SIDE_PANNEL_TAG], handle)
+                sgui.widget_toggle(handle->widget(SIDE_PANNEL_TAG), handle)
             }),
             sgui.center(sgui.text("TRACER")),
             attr = sgui.BoxAttributes{
@@ -152,7 +152,7 @@ header :: proc() -> ^sgui.Widget {
 main_ui :: proc(handle: ^sgui.Handle, timelines_widget: ^TimelinesWidget) -> ^sgui.Widget {
     context.allocator = handle.widget_allocator
     side_pannel := side_pannel(timelines_widget)
-    sgui.tag_widget(handle, side_pannel, SIDE_PANNEL_TAG)
+    handle->store(SIDE_PANNEL_TAG, side_pannel)
 
     return sgui.vbox(
         header(),
