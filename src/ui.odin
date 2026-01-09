@@ -98,29 +98,59 @@ side_pannel :: proc(timelines_widget: ^TimelinesWidget) -> (pannel: ^sgui.Widget
         }
     )
 
+    widgets := make([dynamic]^sgui.Widget)
+    defer delete(widgets)
+
     // toggle groups buttons
-    sgui.box_add_widget(pannel, sgui.text("groups:"))
     for group in timelines_widget.tracer_data.groups_infos {
         button := sgui.radio_button(group, default_checked = true)
         timelines_widget.toggle_groups[group] = button
-        sgui.box_add_widget(pannel, button)
+        append(&widgets, button)
     }
+    sgui.box_add_widget(pannel, sgui.collapsable_section("groups", ..widgets[:]))
+    clear(&widgets)
 
     // toggle timelines buttons
-    sgui.box_add_widget(pannel, sgui.text("timelines:"))
     for timeline in timelines_widget.tracer_data.timelines_infos {
         button := sgui.radio_button(timeline, default_checked = true)
         timelines_widget.toggle_timelines[timeline] = button
-        sgui.box_add_widget(pannel, button)
+        append(&widgets, button)
     }
+    sgui.box_add_widget(pannel, sgui.collapsable_section("timelines:", ..widgets[:]))
+    clear(&widgets)
 
     // stats
-    sgui.box_add_widget(pannel, sgui.text("stats:"))
     for group, group_info in timelines_widget.tracer_data.groups_infos {
         info_str := group_info_to_string(group, group_info)
         defer delete(info_str)
-        sgui.box_add_widget(pannel, sgui.text(info_str))
+        append(&widgets, sgui.text(info_str))
     }
+    sgui.box_add_widget(pannel, sgui.collapsable_section("stats:", ..widgets[:]))
+
+
+    // // toggle groups buttons
+    // sgui.box_add_widget(pannel, sgui.text("groups:"))
+    // for group in timelines_widget.tracer_data.groups_infos {
+    //     button := sgui.radio_button(group, default_checked = true)
+    //     timelines_widget.toggle_groups[group] = button
+    //     sgui.box_add_widget(pannel, button)
+    // }
+
+    // // toggle timelines buttons
+    // sgui.box_add_widget(pannel, sgui.text("timelines:"))
+    // for timeline in timelines_widget.tracer_data.timelines_infos {
+    //     button := sgui.radio_button(timeline, default_checked = true)
+    //     timelines_widget.toggle_timelines[timeline] = button
+    //     sgui.box_add_widget(pannel, button)
+    // }
+
+    // // stats
+    // sgui.box_add_widget(pannel, sgui.text("stats:"))
+    // for group, group_info in timelines_widget.tracer_data.groups_infos {
+    //     info_str := group_info_to_string(group, group_info)
+    //     defer delete(info_str)
+    //     sgui.box_add_widget(pannel, sgui.text(info_str))
+    // }
 
     pannel.disabled = true
     return pannel
@@ -130,9 +160,9 @@ header :: proc() -> ^sgui.Widget {
     return sgui.vbox(
         sgui.hbox(
             sgui.icon_button(
-                sgui.IconData{file = IMAGE_PATH + "/menu.png"},
-                proc(handle: ^sgui.Handle, _: rawptr) {
-                    sgui.widget_toggle(handle->widget(SIDE_PANNEL_TAG), handle)
+                sgui.IconData{file = IMAGE_PATH + "/sidebar.svg"},
+                proc(ui: ^sgui.Ui, _: rawptr) {
+                    sgui.widget_toggle(ui->widget(SIDE_PANNEL_TAG), ui)
                 },
                 w = 20, h = 20,
                 attr = {
@@ -172,10 +202,10 @@ header :: proc() -> ^sgui.Widget {
     )
 }
 
-main_ui :: proc(handle: ^sgui.Handle, timelines_widget: ^TimelinesWidget) -> ^sgui.Widget {
-    context.allocator = handle.widget_allocator
+main_ui :: proc(ui: ^sgui.Ui, timelines_widget: ^TimelinesWidget) -> ^sgui.Widget {
+    context.allocator = ui.widget_allocator
     side_pannel := side_pannel(timelines_widget)
-    handle->store(SIDE_PANNEL_TAG, side_pannel)
+    ui->store(SIDE_PANNEL_TAG, side_pannel)
 
     return sgui.vbox(
         header(),

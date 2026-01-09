@@ -46,27 +46,27 @@ timelines_widget_destroy :: proc(tw: ^TimelinesWidget) {
     delete(tw.toggle_groups)
 }
 
-timelines_widget_init :: proc(handle: ^sgui.Handle, widget: ^sgui.Widget, user_data: rawptr) {
+timelines_widget_init :: proc(ui: ^sgui.Ui, widget: ^sgui.Widget, user_data: rawptr) {
     tw := cast(^TimelinesWidget)user_data
 
     time.stopwatch_start(&tw.hover_stopwatch)
 
-    tw.hovered_trace_text = sgui.create_text(handle, "desc", sgui.FONT, sgui.FONT_SIZE)
+    tw.hovered_trace_text = sgui.create_text(ui, "desc", sgui.FONT, sgui.FONT_SIZE)
     su.text_set_color(tw.hovered_trace_text, su.Color{0, 0, 0, 255})
     su.text_update(tw.hovered_trace_text)
-    tw.legend.marker_text = sgui.create_text(handle, "0 ns", sgui.FONT, sgui.FONT_SIZE)
+    tw.legend.marker_text = sgui.create_text(ui, "0 ns", sgui.FONT, sgui.FONT_SIZE)
     su.text_set_color(tw.legend.marker_text, su.Color{0, 0, 0, 255})
     su.text_update(tw.legend.marker_text)
 
     for timeline in tw.tracer_data.timelines_infos {
-        text := sgui.create_text(handle, timeline, sgui.FONT, sgui.FONT_SIZE)
+        text := sgui.create_text(ui, timeline, sgui.FONT, sgui.FONT_SIZE)
         su.text_set_color(text, su.Color{0, 0, 0, 255})
         su.text_update(text)
         w, h := su.text_size(text)
         tw.legend.timelines[timeline] = text
         tw.legend.w = max(tw.legend.w, w)
     }
-    sgui.add_event_handler(handle, widget, proc(widget: ^sgui.Widget, event: sgui.MouseMotionEvent, handle: ^sgui.Handle) -> bool {
+    sgui.add_event_handler(ui, widget, proc(widget: ^sgui.Widget, event: sgui.MouseMotionEvent, ui: ^sgui.Ui) -> bool {
         box := cast(^sgui.DrawBox)widget
         tw := cast(^TimelinesWidget)box.user_data
         time.stopwatch_reset(&tw.hover_stopwatch)
@@ -76,7 +76,7 @@ timelines_widget_init :: proc(handle: ^sgui.Handle, widget: ^sgui.Widget, user_d
     })
 }
 
-timelines_widget_update :: proc(handle: ^sgui.Handle, widget: ^sgui.Widget, user_data: rawptr) -> sgui.ContentSize {
+timelines_widget_update :: proc(ui: ^sgui.Ui, widget: ^sgui.Widget, user_data: rawptr) -> sgui.ContentSize {
     tw := cast(^TimelinesWidget)user_data
     box := cast(^sgui.DrawBox)widget
     px_tp_ratio :=  box.zoombox.lvl * widget.w / cast(f32)tw.tracer_data.ttl_time
@@ -96,7 +96,7 @@ get_time_axis_markers :: proc(tstart, tttl: f32) -> (mstart, mstep: f32) {
 }
 
 timelines_widget_time_axis_draw :: proc(
-    handle: ^sgui.Handle,
+    ui: ^sgui.Ui,
     widget: ^sgui.Widget,
     tw: ^TimelinesWidget,
     px_tp_ratio, position: f32
@@ -121,11 +121,11 @@ timelines_widget_time_axis_draw :: proc(
             su.text_update(tw.legend.marker_text)
             text_w, _ := su.text_size(tw.legend.marker_text)
             text_x := legend_x + xoffset - text_w / 2
-            sgui.draw_text(handle, tw.legend.marker_text, text_x, cast(f32)TIMELINE_TMARGINE)
-            sgui.draw_rect(handle, legend_x + xoffset, cast(f32)yoffset - 2, 1, 4, sgui.Color{0, 0, 0, 255})
+            sgui.draw_text(ui, tw.legend.marker_text, text_x, cast(f32)TIMELINE_TMARGINE)
+            sgui.draw_rect(ui, legend_x + xoffset, cast(f32)yoffset - 2, 1, 4, sgui.Color{0, 0, 0, 255})
         }
     }
-    sgui.draw_line(handle, tw.legend.w + TIMELINE_LMARGINE + TIMELINE_LEGEND_SPACING, cast(f32)yoffset, widget.w, cast(f32)yoffset, sgui.Color{0, 0, 0, 255})
+    sgui.draw_line(ui, tw.legend.w + TIMELINE_LMARGINE + TIMELINE_LEGEND_SPACING, cast(f32)yoffset, widget.w, cast(f32)yoffset, sgui.Color{0, 0, 0, 255})
     yoffset += TIMELINE_TMARGINE + TIMELINE_SPACING
     return
 }
@@ -152,23 +152,23 @@ find_evs_start_idx :: proc(evs: [dynamic]Ev, tstart: f32) -> (idx: int, ok: bool
     })
 }
 
-timelines_widget_draw :: proc(handle: ^sgui.Handle, widget: ^sgui.Widget, user_data: rawptr) {
+timelines_widget_draw :: proc(ui: ^sgui.Ui, widget: ^sgui.Widget, user_data: rawptr) {
     tw := cast(^TimelinesWidget)user_data
     box := cast(^sgui.DrawBox)widget
     px_tp_ratio := box.zoombox.lvl * widget.w / cast(f32)tw.tracer_data.ttl_time
 
-    xoffset, yoffset := timelines_widget_time_axis_draw(handle, widget, tw, px_tp_ratio, box.scrollbars.horizontal.position)
+    xoffset, yoffset := timelines_widget_time_axis_draw(ui, widget, tw, px_tp_ratio, box.scrollbars.horizontal.position)
 
     tstart := box.scrollbars.horizontal.position / px_tp_ratio
 
     for timeline in tw.tracer_data.timelines_infos {
         if !sgui.radio_button_value(tw.toggle_timelines[timeline]) do continue
 
-        sgui.draw_text(handle, tw.legend.timelines[timeline], TIMELINE_LMARGINE, cast(f32)yoffset)
+        sgui.draw_text(ui, tw.legend.timelines[timeline], TIMELINE_LMARGINE, cast(f32)yoffset)
 
-        old_rel_rect := handle.rel_rect
-        handle.rel_rect.x = old_rel_rect.x + tw.legend.w + TIMELINE_LMARGINE + TIMELINE_LEGEND_SPACING
-        defer handle.rel_rect = old_rel_rect
+        old_rel_rect := ui.rel_rect
+        ui.rel_rect.x = old_rel_rect.x + tw.legend.w + TIMELINE_LMARGINE + TIMELINE_LEGEND_SPACING
+        defer ui.rel_rect = old_rel_rect
 
 
         xoffset = -box.scrollbars.horizontal.position
@@ -191,9 +191,9 @@ timelines_widget_draw :: proc(handle: ^sgui.Handle, widget: ^sgui.Widget, user_d
                     break
                 }
 
-                sgui.draw_rounded_box_with_border(handle, x, y, w, h, 6, 1,
+                sgui.draw_rounded_box_with_border(ui, x, y, w, h, 6, 1,
                     sgui.Color{200, 200, 200, 255}, tw.tracer_data.groups_infos[du.group].color)
-                if sgui.mouse_on_region(handle, x, y, w, h) {
+                if sgui.mouse_on_region(ui, x, y, w, h) {
                     tw.hovered_trace = &du
                 }
             }
@@ -216,21 +216,21 @@ timelines_widget_draw :: proc(handle: ^sgui.Handle, widget: ^sgui.Widget, user_d
                     break
                 }
 
-                sgui.draw_rect(handle, x, y, w, h, tw.tracer_data.groups_infos[ev.group].color)
-                if sgui.mouse_on_region(handle, x, y, w, h) {
+                sgui.draw_rect(ui, x, y, w, h, tw.tracer_data.groups_infos[ev.group].color)
+                if sgui.mouse_on_region(ui, x, y, w, h) {
                     tw.hovered_trace = &ev
                 }
             }
         }
 
         yoffset += TIMELINE_HEIGHT
-        sgui.draw_line(handle, 0, cast(f32)yoffset + TIMELINE_SPACING / 2., widget.w, cast(f32)yoffset + TIMELINE_SPACING / 2., sgui.Color{0, 0, 0, 255})
+        sgui.draw_line(ui, 0, cast(f32)yoffset + TIMELINE_SPACING / 2., widget.w, cast(f32)yoffset + TIMELINE_SPACING / 2., sgui.Color{0, 0, 0, 255})
         yoffset += TIMELINE_SPACING
     }
 
     // draw floating window when the mouse stays on an element
     if time.duration_seconds(time.stopwatch_duration(tw.hover_stopwatch)) > 0.5 {
-        sgui.add_ordered_draw(handle, 0, proc(handle: ^sgui.Handle, draw_data: rawptr) {
+        sgui.add_ordered_draw(ui, 0, proc(ui: ^sgui.Ui, draw_data: rawptr) {
             tw := cast(^TimelinesWidget)draw_data
 
             if tw.hovered_trace == nil do return
@@ -241,18 +241,18 @@ timelines_widget_draw :: proc(handle: ^sgui.Handle, widget: ^sgui.Widget, user_d
                 w, h := su.text_size(tw.hovered_trace_text)
                 padding := cast(f32)4
                 sgui.draw_rect(
-                    handle,
-                    handle.mouse_x - w - 2 * padding, handle.mouse_y,
+                    ui,
+                    ui.mouse_x - w - 2 * padding, ui.mouse_y,
                     w + 2 * padding, h + 2 * padding,
                     sgui.Color{0, 0, 0, 255}
                 )
                 sgui.draw_rect(
-                    handle,
-                    handle.mouse_x - w - 2 * padding + 1, handle.mouse_y + 1,
+                    ui,
+                    ui.mouse_x - w - 2 * padding + 1, ui.mouse_y + 1,
                     w + 2 * padding - 2, h + 2 * padding - 2,
                     sgui.Color{240, 240, 240, 255}
                 )
-                sgui.draw_text(handle, tw.hovered_trace_text, handle.mouse_x - w - padding, handle.mouse_y + padding)
+                sgui.draw_text(ui, tw.hovered_trace_text, ui.mouse_x - w - padding, ui.mouse_y + padding)
         }, tw)
     }
 }
