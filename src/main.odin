@@ -38,10 +38,14 @@ main :: proc() {
     timelines_widget := timelines_widget_create(tracer_data)
     defer timelines_widget_destroy(&timelines_widget)
 
-    handle := sgui.create()
+    sgui.init()
 
-    sgui.add_layer(handle, main_ui(handle, &timelines_widget))
+    ui := sgui.create()
 
-    sgui.run(handle)
-    sgui.destroy(handle)
+    sgui.add_layer(ui, main_ui(ui, &timelines_widget))
+
+    sgui.run(ui)
+    sgui.destroy(ui)
+
+    sgui.fini()
 }
