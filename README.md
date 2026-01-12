@@ -2,9 +2,20 @@
 
 ## Tracer file format
 
-timestamps in ns.
+- Timestamps in ns (`u64`).
+- The fields `group`, `timeline` and `infos` are strings that are preceded by
+  the number of characters.
+
+### Event format
 
 ```
-ev;<timestamp>;<group>;<timeline>(;<info_line1>,<info_line2>,...)?
-du;<timestamp_start>,<timestamp_end>;<group>;<timeline>(;<info_line1>,<info_line2>,...)?
+EV::[<tp:8>][<group:8+size>][<timeline:8+size>][<infos:8+size>]
 ```
+
+### Duration format
+
+```
+DU::[<tp1:8><tp2:8>][<group:8+size>][<timeline:8+size>][<infos:8+size>]
+```
+
+
