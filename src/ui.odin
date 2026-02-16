@@ -4,7 +4,7 @@ import "core:os"
 import "core:log"
 import "core:fmt"
 import "deps:sgui"
-import su "deps:sgui/sdl_utils"
+import "deps:sgui/widgets"
 
 SIDE_PANNEL_TAG :: 1
 TIMELINES_WIDGET_TAG :: 1
@@ -12,14 +12,16 @@ TIMELINES_WIDGET_TAG :: 1
 IMAGE_PATH :: #config(IMAGE_PATH, "ressources/images")
 
 set_theme :: proc() {
-    using sgui
+    using widgets
+    sgui.OPTS = sgui.Opts{
+        clear_color = sgui.Color{255, 255, 255, 255},
+    }
     OPTS = Opts{
-        clear_color = Color{255, 255, 255, 255},
         text_attr = TextAttributes{
             style = TextStyle{
                 font = FONT,
                 font_size = FONT_SIZE,
-                color = Color{0, 0, 0, 255},
+                color = sgui.Color{0, 0, 0, 255},
                 wrap_width = 0,
             },
         },
@@ -30,21 +32,21 @@ set_theme :: proc() {
                 padding = {2, 2, 2, 2},
                 border_thickness = 1,
                 corner_radius = 0,
-                colors = [ButtonState]ButtonColors{
+                colors = [sgui.WidgetMouseState]ButtonColors{
                     .Idle = ButtonColors{
-                        text = Color{0, 0, 0, 255},
-                        border = Color{0, 0, 0, 255},
-                        bg = Color{255, 255, 255, 255},
+                        text = sgui.Color{0, 0, 0, 255},
+                        border = sgui.Color{0, 0, 0, 255},
+                        bg = sgui.Color{255, 255, 255, 255},
                     },
                     .Hovered = ButtonColors{
-                        text = Color{0, 0, 0, 255},
-                        border = Color{0, 0, 0, 255},
-                        bg = Color{100, 100, 100, 255},
+                        text = sgui.Color{0, 0, 0, 255},
+                        border = sgui.Color{0, 0, 0, 255},
+                        bg = sgui.Color{100, 100, 100, 255},
                     },
                     .Clicked = ButtonColors{
-                        text = Color{255, 255, 255, 255},
-                        border = Color{255, 255, 255, 255},
-                        bg = Color{0, 0, 0, 255},
+                        text = sgui.Color{255, 255, 255, 255},
+                        border = sgui.Color{255, 255, 255, 255},
+                        bg = sgui.Color{0, 0, 0, 255},
                     },
                 },
             },
@@ -54,11 +56,11 @@ set_theme :: proc() {
                 base_radius = 6,
                 border_thickness = 1,
                 dot_radius = 2,
-                border_color = Color{0, 0, 0, 255},
-                background_color = Color{255, 255, 255, 255},
-                dot_color = Color{0, 0, 0, 255},
+                border_color = sgui.Color{0, 0, 0, 255},
+                background_color = sgui.Color{255, 255, 255, 255},
+                dot_color = sgui.Color{0, 0, 0, 255},
                 label_padding = 10,
-                label_color = Color{0, 0, 0, 255},
+                label_color = sgui.Color{0, 0, 0, 255},
                 font = FONT,
                 font_size = FONT_SIZE,
             }
@@ -66,16 +68,16 @@ set_theme :: proc() {
         scrollbars_attr = ScrollbarsAttributes{
             style = ScrollbarStyle{
                 track_padding = Padding{2, 2, 2, 2},
-                track_color = Color{240, 240, 240, 255},
-                thumb_color = [ScrollbarThumbState]Color{
-                    .Idle = Color{150, 150, 150, 255},
-                    .Hovered = Color{170, 170, 170, 255},
-                    .Selected = Color{160, 160, 160, 255},
+                track_color = sgui.Color{240, 240, 240, 255},
+                thumb_color = [sgui.WidgetMouseState]sgui.Color{
+                    .Idle = sgui.Color{150, 150, 150, 255},
+                    .Hovered = sgui.Color{170, 170, 170, 255},
+                    .Clicked = sgui.Color{160, 160, 160, 255},
                 },
-                button_color = [ScrollbarButtonState]Color{
-                    .Idle = Color{150, 150, 150, 255},
-                    .Hovered = Color{170, 170, 170, 255},
-                    .Clicked = Color{160, 160, 160, 255},
+                button_color = [sgui.WidgetMouseState]sgui.Color{
+                    .Idle = sgui.Color{150, 150, 150, 255},
+                    .Hovered = sgui.Color{170, 170, 170, 255},
+                    .Clicked = sgui.Color{160, 160, 160, 255},
                 },
             },
         },
@@ -83,16 +85,17 @@ set_theme :: proc() {
 }
 
 side_pannel :: proc(timelines_widget: ^TimelinesWidget) -> (pannel: ^sgui.Widget) {
-    pannel = sgui.vbox(
-        sgui.text("Menu"),
-        attr = sgui.BoxAttributes{
-            props = sgui.BoxProperties{.FitW},
-            style = sgui.BoxStyle{
-                active_borders = sgui.ActiveBorders{.Right},
+    using widgets
+    pannel = vbox(
+        text("Menu"),
+        attr = BoxAttributes{
+            props = BoxProperties{.FitW},
+            style = BoxStyle{
+                active_borders = ActiveBorders{.Right},
                 border_color = sgui.Color{0, 0, 0, 255},
                 border_thickness = 1,
                 background_color = sgui.Color{240, 240, 250, 255},
-                padding = sgui.Padding{10, 10, 10, 10},
+                padding = Padding{10, 10, 10, 10},
                 items_spacing = 5,
             }
         }
@@ -103,64 +106,39 @@ side_pannel :: proc(timelines_widget: ^TimelinesWidget) -> (pannel: ^sgui.Widget
 
     // toggle groups buttons
     for group in timelines_widget.tracer_data.groups_infos {
-        button := sgui.radio_button(group, default_checked = true)
+        button := radio_button(group, default_checked = true)
         timelines_widget.toggle_groups[group] = button
         append(&widgets, button)
     }
-    sgui.box_add_widget(pannel, sgui.collapsable_section("groups", ..widgets[:]))
+    box_add_widget(pannel, collapsable_section("groups", ..widgets[:]))
     clear(&widgets)
 
     // toggle timelines buttons
     for timeline in timelines_widget.tracer_data.timelines_infos {
-        button := sgui.radio_button(timeline, default_checked = true)
+        button := radio_button(timeline, default_checked = true)
         timelines_widget.toggle_timelines[timeline] = button
         append(&widgets, button)
     }
-    sgui.box_add_widget(pannel, sgui.collapsable_section("timelines:", ..widgets[:]))
+    box_add_widget(pannel, collapsable_section("timelines:", ..widgets[:]))
     clear(&widgets)
 
     // stats
     for group, group_info in timelines_widget.tracer_data.groups_infos {
         info_str := group_info_to_string(group, group_info)
         defer delete(info_str)
-        append(&widgets, sgui.text(info_str))
+        append(&widgets, text(info_str))
     }
-    sgui.box_add_widget(pannel, sgui.collapsable_section("stats:", ..widgets[:]))
-
-
-    // // toggle groups buttons
-    // sgui.box_add_widget(pannel, sgui.text("groups:"))
-    // for group in timelines_widget.tracer_data.groups_infos {
-    //     button := sgui.radio_button(group, default_checked = true)
-    //     timelines_widget.toggle_groups[group] = button
-    //     sgui.box_add_widget(pannel, button)
-    // }
-
-    // // toggle timelines buttons
-    // sgui.box_add_widget(pannel, sgui.text("timelines:"))
-    // for timeline in timelines_widget.tracer_data.timelines_infos {
-    //     button := sgui.radio_button(timeline, default_checked = true)
-    //     timelines_widget.toggle_timelines[timeline] = button
-    //     sgui.box_add_widget(pannel, button)
-    // }
-
-    // // stats
-    // sgui.box_add_widget(pannel, sgui.text("stats:"))
-    // for group, group_info in timelines_widget.tracer_data.groups_infos {
-    //     info_str := group_info_to_string(group, group_info)
-    //     defer delete(info_str)
-    //     sgui.box_add_widget(pannel, sgui.text(info_str))
-    // }
-
+    box_add_widget(pannel, collapsable_section("stats:", ..widgets[:]))
     pannel.disabled = true
     return pannel
 }
 
 header :: proc() -> ^sgui.Widget {
-    return sgui.vbox(
-        sgui.hbox(
-            sgui.icon_button(
-                sgui.IconData{file = IMAGE_PATH + "/sidebar.svg"},
+    using widgets
+    return vbox(
+        hbox(
+            icon_button(
+                IconData{file = IMAGE_PATH + "/sidebar.svg"},
                 proc(ui: ^sgui.Ui, _: rawptr) {
                     sgui.widget_toggle(ui->widget(SIDE_PANNEL_TAG), ui)
                 },
@@ -183,19 +161,19 @@ header :: proc() -> ^sgui.Widget {
                     }
                 }
             ),
-            sgui.center(sgui.text("TRACER")),
-            attr = sgui.BoxAttributes{
-                props = sgui.BoxProperties{.FitH},
+            sgui.center(text("TRACER")),
+            attr = BoxAttributes{
+                props = BoxProperties{.FitH},
             }
         ),
-        attr = sgui.BoxAttributes{
-            props = sgui.BoxProperties{.FitH},
-            style = sgui.BoxStyle{
-                active_borders = sgui.ActiveBorders{.Bottom},
+        attr = BoxAttributes{
+            props = BoxProperties{.FitH},
+            style = BoxStyle{
+                active_borders = ActiveBorders{.Bottom},
                 border_color = sgui.Color{0, 0, 0, 255},
                 border_thickness = 1,
                 background_color = sgui.Color{250, 250, 255, 255},
-                padding = sgui.Padding{10, 10, 10, 10},
+                padding = Padding{10, 10, 10, 10},
             }
         },
         z_index = 1,
@@ -203,25 +181,26 @@ header :: proc() -> ^sgui.Widget {
 }
 
 main_ui :: proc(ui: ^sgui.Ui, timelines_widget: ^TimelinesWidget) -> ^sgui.Widget {
+    using widgets
     context.allocator = ui.widget_allocator
     side_pannel := side_pannel(timelines_widget)
     ui->store(SIDE_PANNEL_TAG, side_pannel)
 
-    return sgui.vbox(
+    return vbox(
         header(),
-        sgui.hbox(
+        hbox(
             side_pannel,
-            sgui.draw_box(
+            draw_box(
                 timelines_widget_draw,
                 timelines_widget_update,
                 timelines_widget_init,
                 data = timelines_widget,
-                attr = sgui.DrawBoxAttributes{
-                    props = sgui.DrawBoxProperties{.WithScrollbar, .Zoomable},
+                attr = DrawBoxAttributes{
+                    props = DrawBoxProperties{.WithScrollbar, .Zoomable},
                     zoom_min = 1.,
                     zoom_max = 1000000.,
                     zoom_step = 10.,
-                    scrollbars_attr = sgui.OPTS.scrollbars_attr,
+                    scrollbars_attr = OPTS.scrollbars_attr,
                 }
             ),
         ),

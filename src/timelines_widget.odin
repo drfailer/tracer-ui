@@ -6,7 +6,8 @@ import "deps:sgui"
 import "core:math"
 import "core:slice"
 import "core:log"
-import su "deps:sgui/sdl_utils"
+import "deps:sgui/gla"
+import "deps:sgui/widgets"
 
 TIMELINE_HEIGHT :: 20
 TIMELINE_LEGEND_SPACING :: 10
@@ -21,20 +22,20 @@ EVENT_THICKNESS :: 2
 TimelinesWidget :: struct {
     tracer_data: ^TracerData,
     legend: struct {
-        timelines: map[string]^su.Text,
+        timelines: map[string]^gla.Text,
         w: f32,
-        marker_text: ^su.Text,
+        marker_text: ^gla.Text,
     },
     toggle_timelines: map[string]^sgui.Widget,
     toggle_groups: map[string]^sgui.Widget,
     hovered_trace: Trace,
-    hovered_trace_text: ^su.Text,
+    hovered_trace_text: ^gla.Text,
     hover_stopwatch: time.Stopwatch,
 }
 
 timelines_widget_create :: proc(tracer_data: ^TracerData) -> (tw: TimelinesWidget) {
     tw.tracer_data = tracer_data
-    tw.legend.timelines = make(map[string]^su.Text)
+    tw.legend.timelines = make(map[string]^gla.Text)
     tw.toggle_timelines = make(map[string]^sgui.Widget)
     tw.toggle_groups = make(map[string]^sgui.Widget)
     return tw
@@ -51,23 +52,23 @@ timelines_widget_init :: proc(ui: ^sgui.Ui, widget: ^sgui.Widget, user_data: raw
 
     time.stopwatch_start(&tw.hover_stopwatch)
 
-    tw.hovered_trace_text = sgui.create_text(ui, "desc", sgui.FONT, sgui.FONT_SIZE)
-    su.text_set_color(tw.hovered_trace_text, su.Color{0, 0, 0, 255})
-    su.text_update(tw.hovered_trace_text)
-    tw.legend.marker_text = sgui.create_text(ui, "0 ns", sgui.FONT, sgui.FONT_SIZE)
-    su.text_set_color(tw.legend.marker_text, su.Color{0, 0, 0, 255})
-    su.text_update(tw.legend.marker_text)
+    tw.hovered_trace_text = sgui.create_text(ui, "desc", widgets.FONT, widgets.FONT_SIZE)
+    gla.text_set_color(tw.hovered_trace_text, gla.Color{0, 0, 0, 255})
+    gla.text_update(tw.hovered_trace_text)
+    tw.legend.marker_text = sgui.create_text(ui, "0 ns", widgets.FONT, widgets.FONT_SIZE)
+    gla.text_set_color(tw.legend.marker_text, gla.Color{0, 0, 0, 255})
+    gla.text_update(tw.legend.marker_text)
 
     for timeline in tw.tracer_data.timelines_infos {
-        text := sgui.create_text(ui, timeline, sgui.FONT, sgui.FONT_SIZE)
-        su.text_set_color(text, su.Color{0, 0, 0, 255})
-        su.text_update(text)
-        w, h := su.text_size(text)
+        text := sgui.create_text(ui, timeline, widgets.FONT, widgets.FONT_SIZE)
+        gla.text_set_color(text, gla.Color{0, 0, 0, 255})
+        gla.text_update(text)
+        w, h := gla.text_size(text)
         tw.legend.timelines[timeline] = text
         tw.legend.w = max(tw.legend.w, w)
     }
     sgui.add_event_handler(ui, widget, proc(widget: ^sgui.Widget, event: sgui.MouseMotionEvent, ui: ^sgui.Ui) -> bool {
-        box := cast(^sgui.DrawBox)widget
+        box := cast(^widgets.DrawBox)widget
         tw := cast(^TimelinesWidget)box.user_data
         time.stopwatch_reset(&tw.hover_stopwatch)
         time.stopwatch_start(&tw.hover_stopwatch)
@@ -76,11 +77,11 @@ timelines_widget_init :: proc(ui: ^sgui.Ui, widget: ^sgui.Widget, user_data: raw
     })
 }
 
-timelines_widget_update :: proc(ui: ^sgui.Ui, widget: ^sgui.Widget, user_data: rawptr) -> sgui.ContentSize {
+timelines_widget_update :: proc(ui: ^sgui.Ui, widget: ^sgui.Widget, user_data: rawptr) -> widgets.ContentSize {
     tw := cast(^TimelinesWidget)user_data
-    box := cast(^sgui.DrawBox)widget
+    box := cast(^widgets.DrawBox)widget
     px_tp_ratio :=  box.zoombox.lvl * widget.w / cast(f32)tw.tracer_data.ttl_time
-    size := sgui.ContentSize{
+    size := widgets.ContentSize{
         TIMELINE_LMARGINE + tw.legend.w + TIMELINE_LEGEND_SPACING \
             + cast(f32)tw.tracer_data.ttl_time * px_tp_ratio \
             + TIMELINE_RMARGINE,
@@ -101,7 +102,7 @@ timelines_widget_time_axis_draw :: proc(
     tw: ^TimelinesWidget,
     px_tp_ratio, position: f32
 ) -> (xoffset, yoffset: f32) {
-    text_w, text_h := su.text_size(tw.legend.marker_text)
+    text_w, text_h := gla.text_size(tw.legend.marker_text)
     yoffset = cast(f32)TIMELINE_TMARGINE + text_h
     xoffset = tw.legend.w + TIMELINE_LMARGINE + TIMELINE_LEGEND_SPACING
 
@@ -117,9 +118,9 @@ timelines_widget_time_axis_draw :: proc(
             // the time_to_string function is now generic
             tp_str := time_to_string(legend)
             defer delete(tp_str)
-            su.text_set_text(tw.legend.marker_text, tp_str)
-            su.text_update(tw.legend.marker_text)
-            text_w, _ := su.text_size(tw.legend.marker_text)
+            gla.text_set_text(tw.legend.marker_text, tp_str)
+            gla.text_update(tw.legend.marker_text)
+            text_w, _ := gla.text_size(tw.legend.marker_text)
             text_x := legend_x + xoffset - text_w / 2
             sgui.draw_text(ui, tw.legend.marker_text, text_x, cast(f32)TIMELINE_TMARGINE)
             sgui.draw_rect(ui, legend_x + xoffset, cast(f32)yoffset - 2, 1, 4, sgui.Color{0, 0, 0, 255})
@@ -154,7 +155,7 @@ find_evs_start_idx :: proc(evs: [dynamic]Ev, tstart: f32) -> (idx: int, ok: bool
 
 timelines_widget_draw :: proc(ui: ^sgui.Ui, widget: ^sgui.Widget, user_data: rawptr) {
     tw := cast(^TimelinesWidget)user_data
-    box := cast(^sgui.DrawBox)widget
+    box := cast(^widgets.DrawBox)widget
     px_tp_ratio := box.zoombox.lvl * widget.w / cast(f32)tw.tracer_data.ttl_time
 
     xoffset, yoffset := timelines_widget_time_axis_draw(ui, widget, tw, px_tp_ratio, box.scrollbars.horizontal.position)
@@ -162,7 +163,7 @@ timelines_widget_draw :: proc(ui: ^sgui.Ui, widget: ^sgui.Widget, user_data: raw
     tstart := box.scrollbars.horizontal.position / px_tp_ratio
 
     for timeline in tw.tracer_data.timelines_infos {
-        if !sgui.radio_button_value(tw.toggle_timelines[timeline]) do continue
+        if !widgets.radio_button_value(tw.toggle_timelines[timeline]) do continue
 
         sgui.draw_text(ui, tw.legend.timelines[timeline], TIMELINE_LMARGINE, cast(f32)yoffset)
 
@@ -178,7 +179,7 @@ timelines_widget_draw :: proc(ui: ^sgui.Ui, widget: ^sgui.Widget, user_data: raw
             start_idx, found := find_dus_start_idx(dus, tstart)
             for &du in dus[start_idx:] {
             // for &du in dus {
-                if !sgui.radio_button_value(tw.toggle_groups[du.group]) do continue
+                if !widgets.radio_button_value(tw.toggle_groups[du.group]) do continue
                 dur := du.end - du.begin
                 x : f32 = cast(f32)du.begin * px_tp_ratio + xoffset
                 y : f32 = yoffset
@@ -204,7 +205,7 @@ timelines_widget_draw :: proc(ui: ^sgui.Ui, widget: ^sgui.Widget, user_data: raw
             start_idx, found := find_evs_start_idx(evs, tstart)
             for &ev in evs[start_idx:] {
             // for &ev in evs {
-                if !sgui.radio_button_value(tw.toggle_groups[ev.group]) do continue
+                if !widgets.radio_button_value(tw.toggle_groups[ev.group]) do continue
                 x : f32 = cast(f32)ev.tp * px_tp_ratio - EVENT_THICKNESS / 2. + xoffset
                 y : f32 = yoffset
                 w : f32 = EVENT_THICKNESS
@@ -236,9 +237,9 @@ timelines_widget_draw :: proc(ui: ^sgui.Ui, widget: ^sgui.Widget, user_data: raw
             if tw.hovered_trace == nil do return
                 desc := trace_to_string(tw.hovered_trace)
                 defer delete(desc)
-                su.text_set_text(tw.hovered_trace_text, desc)
-                su.text_update(tw.hovered_trace_text)
-                w, h := su.text_size(tw.hovered_trace_text)
+                gla.text_set_text(tw.hovered_trace_text, desc)
+                gla.text_update(tw.hovered_trace_text)
+                w, h := gla.text_size(tw.hovered_trace_text)
                 padding := cast(f32)4
                 sgui.draw_rect(
                     ui,
