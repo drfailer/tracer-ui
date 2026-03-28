@@ -1,3 +1,4 @@
+#+feature using-stmt
 package tracer_ui
 
 import "core:os"

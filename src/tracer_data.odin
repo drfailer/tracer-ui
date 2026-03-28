@@ -233,11 +233,10 @@ tracer_parse_trace :: proc(data: []byte, td: ^TracerData) -> (rest: []byte, ok: 
 }
 
 tracer_parse_file :: proc(filepath: string) -> (td: ^TracerData, ok: bool) {
-    data: []byte
-    data, ok = os.read_entire_file(filepath)
-	if !ok {
+    data, err := os.read_entire_file(filepath, context.allocator)
+	if err != nil {
         log.error("cannot read entire file")
-		return
+		return nil, false
 	}
 	defer delete(data)
 
